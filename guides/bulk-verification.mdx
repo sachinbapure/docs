@@ -1,5 +1,5 @@
 ---
-title: "Bulk Email Verification: Verify Thousands at Once"
+title: "Bulk Email Verification: Send Up to 10,000 at Once"
 sidebarTitle: "Bulk Verification"
 description: "Submit up to 10,000 emails per job to POST /api/v1/verify/bulk. Jobs run asynchronously — poll for status or receive a webhook when complete."
 ---
@@ -70,6 +70,11 @@ MailValid responds immediately with a job object:
 **Endpoint:** `GET https://mailvalid.io/api/v1/verify/bulk/{job_id}`
 
 Poll this endpoint at any time to check the current state of a job. When `status` is `completed`, the response includes the full results array.
+
+```bash cURL
+curl https://mailvalid.io/api/v1/verify/bulk/550e8400-e29b-41d4-a716-446655440000 \
+  -H "X-API-Key: mv_live_your_key_here"
+```
 
 ```json
 {

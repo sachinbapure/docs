@@ -1,7 +1,7 @@
 ---
 title: "POST /api/v1/verify/single — Verify a Single Email"
 sidebarTitle: "Verify Single Email"
-description: "POST /api/v1/verify/single verifies one email address in real-time. Accepts an email string, returns status, is_valid, confidence_score, and 15+ data points."
+description: "POST /api/v1/verify/single verifies one email address in real-time. Returns status, is_valid, confidence_score, and 15+ additional result fields."
 ---
 
 This endpoint verifies a single email address synchronously and returns a comprehensive result within 500ms on average. It performs syntax validation, domain and MX record checks, and a live SMTP mailbox probe — giving you everything you need to decide whether to send to an address before a single message leaves your server.

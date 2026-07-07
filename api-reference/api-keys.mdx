@@ -10,7 +10,7 @@ MailValid API keys authenticate every request you make to the API. You can manag
 
 All MailValid API keys begin with the `mv_live_` prefix followed by a random string, for example:
 
-```
+```text
 mv_live_a1b2c3d4e5f6g7h8i9j0...
 ```
 
@@ -88,6 +88,19 @@ curl -X POST https://mailvalid.io/api/auth/api-keys \
 ```
 
 The response includes the full `key` value. **This is the only time it is returned** — store it immediately.
+
+```json Example response (key created)
+{
+  "id": "key_xyz789",
+  "name": "my-app-prod",
+  "key": "mv_live_a1b2c3d4e5f6g7h8i9j0...",
+  "created_at": "2026-07-08T12:00:00Z"
+}
+```
+
+<Warning>
+  The `key` field is returned **only once** in this response. Copy it to your secrets manager before closing — it cannot be retrieved again. If you lose it, revoke the key and create a new one.
+</Warning>
 
 ---
 

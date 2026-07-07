@@ -1,5 +1,5 @@
 ---
-title: "MailValid Webhooks: Bulk Job Notifications and Bounce Feedback"
+title: "MailValid Webhooks: Job Notifications & Bounce Data"
 sidebarTitle: "Webhooks"
 description: "Receive instant notifications when bulk jobs complete, and feed bounce data back to MailValid to improve future verification accuracy."
 ---
@@ -113,6 +113,20 @@ Send up to 1,000 events per request:
     }
   ]
 }
+```
+
+### Example request
+
+```bash cURL
+curl -X POST https://mailvalid.io/api/v1/webhooks/bounce \
+  -H "X-API-Key: mv_live_your_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "events": [
+      {"email": "bounced@example.com", "event_type": "hard_bounce", "bounce_code": "550"},
+      {"email": "good@example.com", "event_type": "delivered"}
+    ]
+  }'
 ```
 
 ### Response

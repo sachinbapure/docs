@@ -46,10 +46,10 @@ Every result includes a `confidence_score` from 0 to 100. This reflects how cert
 
 | Range | Meaning |
 |---|---|
-| 90–100 | Very high — SMTP confirmed, historical data |
-| 70–89 | High — historical delivery, trusted provider |
+| 90–100 | Very high — SMTP confirmed, historical hard bounce, or syntax/domain failure |
+| 70–89 | High — historical delivery data, trusted provider response |
 | 40–69 | Medium — catch-all domain, DNS-only verification |
-| 0–39 | Low — provider blocked, timeout |
+| 0–39 | Low — provider blocked verification, timeout |
 
 A `valid` result with a confidence score of 95 means MailValid received a live SMTP 250 confirmation from the mail server. A score of 30 on an `unknown` result means the provider blocked the check and the deliverability is genuinely uncertain.
 

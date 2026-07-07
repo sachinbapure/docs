@@ -1,7 +1,7 @@
 ---
-title: "POST /api/v1/webhooks/bounce — Send Bounce Feedback to MailValid"
+title: "POST /api/v1/webhooks/bounce — Submit Bounce Events"
 sidebarTitle: "Bounce Feedback"
-description: "POST /api/v1/webhooks/bounce feeds delivery events back to MailValid. Hard bounces mark addresses invalid; complaints mark do_not_mail — improving future accuracy."
+description: "POST /api/v1/webhooks/bounce feeds delivery events back to MailValid. Hard bounces mark addresses invalid; complaints mark them do_not_mail automatically."
 ---
 
 Improve MailValid's future verification accuracy by feeding delivery events from your email provider back to this endpoint. Every hard bounce or complaint you report is stored and checked before any future SMTP probe — meaning known-bad addresses return results instantly at 0 credits, and your confidence scores become more accurate over time. This feedback loop is especially valuable for providers like Microsoft and Apple that block direct SMTP verification.

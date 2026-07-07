@@ -1,5 +1,5 @@
 ---
-title: "Verify a Single Email Address with MailValid"
+title: "Single Email Verification API Reference — MailValid"
 sidebarTitle: "Single Verification"
 description: "Use POST /api/v1/verify/single to verify one email address in real-time. Includes request parameters, full response field reference, and code examples."
 ---
@@ -72,6 +72,28 @@ const data = await response.json();
 console.log(`Status: ${data.result.status}`);  // valid, invalid, catch_all, unknown, do_not_mail
 console.log(`Valid: ${data.result.is_valid}`);
 console.log(`Confidence: ${data.result.confidence_score}`);
+```
+
+```php PHP
+<?php
+$apiKey = "mv_live_your_key_here";
+
+$ch = curl_init("https://mailvalid.io/api/v1/verify/single");
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_POST => true,
+    CURLOPT_HTTPHEADER => [
+        "X-API-Key: " . $apiKey,
+        "Content-Type: application/json"
+    ],
+    CURLOPT_POSTFIELDS => json_encode(["email" => "john@company.com"])
+]);
+
+$result = json_decode(curl_exec($ch), true);
+echo "Status: " . $result['result']['status'];  // valid, invalid, catch_all, unknown, do_not_mail
+echo "Valid: " . ($result['result']['is_valid'] ? 'Yes' : 'No');
+echo "Confidence: " . $result['result']['confidence_score'];
+?>
 ```
 
 </CodeGroup>

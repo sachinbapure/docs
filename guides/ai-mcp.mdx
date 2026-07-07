@@ -1,5 +1,5 @@
 ---
-title: "Use MailValid with AI Agents via MCP"
+title: "MailValid MCP Server for AI Agents — Claude & Cursor"
 sidebarTitle: "AI & MCP"
 description: "Connect Claude, Cursor, and other MCP-compatible AI agents to MailValid using the Model Context Protocol server at https://mailvalid.io/mcp/."
 ---
@@ -67,7 +67,7 @@ The MCP server exposes the following tools to connected agents:
 | `list_bulk_jobs` | API key | Free | List recent bulk jobs (paginated) |
 | `cancel_bulk_job` | API key | Free | Cancel a job and release reserved credits |
 | `get_credit_balance` | API key | Free | Your current credit balance |
-| `verify_email_demo` | None | Free | Demo validation — syntax checks only, no SMTP |
+| `verify_email_demo` | None | Free | Demo validation — syntax, disposable, role, and free-provider checks only (no SMTP). Rate-limited per IP. Args: `email`. |
 | `get_api_discovery` | None | Free | MailValid machine-readable discovery URLs |
 
 \* `verify_email` is free for `unknown` results and recent cached repeats.

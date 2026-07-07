@@ -1,7 +1,7 @@
 ---
-title: "GET /api/v1/verify/bulk/{job_id}/download — Download Bulk Results"
+title: "GET /verify/bulk/{job_id}/download — Export Results"
 sidebarTitle: "Download Results"
-description: "Download completed bulk verification results as CSV or JSON. Supports the format query parameter with values csv or json."
+description: "Download completed bulk verification results as CSV or JSON. Use the format query parameter to choose output type. Results are available for 30 days."
 ---
 
 After a bulk job reaches `status: completed`, download the full results as a CSV or JSON file. This is useful when you want to import results into a spreadsheet, data warehouse, or email marketing platform. Results remain available for download for 30 days after the job completes.

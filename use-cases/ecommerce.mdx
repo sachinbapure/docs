@@ -1,7 +1,7 @@
 ---
-title: "Validate Checkout Emails to Ensure Order Confirmations Arrive"
+title: "Verify Customer Emails at Checkout to Prevent Missed Orders"
 sidebarTitle: "E-commerce"
-description: "Verify customer email addresses at checkout to guarantee order confirmations and shipping updates reach buyers. Prevent failed deliveries before they happen."
+description: "Verify customer emails at checkout so confirmations and shipping updates reach buyers. Catch typos and bad addresses before payment completes."
 ---
 
 In e-commerce, a failed order confirmation email means a frustrated customer. When a buyer types their email address under the pressure of completing a purchase, typos are common — and a single transposed character means they never receive their receipt, shipping notification, or tracking link. Real-time verification at checkout catches these mistakes before the purchase completes, so every order confirmation reaches its intended recipient.
@@ -27,24 +27,24 @@ You have two moments in the checkout flow where you can trigger verification:
 
 ## Integration example
 
-The example below attaches a `blur` event listener to the email input field. When the customer moves focus away, it calls the verification endpoint and displays an inline error message if the address is invalid or disposable.
+The example below uses two parts: a browser-side blur handler that calls your own server endpoint, and the server-side handler that calls MailValid with your API key. This keeps your key off the page.
+
+**Browser-side (attaches to the email field):**
 
 ```javascript
 document.getElementById('email').addEventListener('blur', async (event) => {
   const email = event.target.value;
   if (!email) return;
-  
-  const response = await fetch('https://mailvalid.io/api/v1/verify/single', {
+
+  // Call your own backend — never call MailValid directly from the browser
+  const response = await fetch('/api/verify-email', {
     method: 'POST',
-    headers: {
-      'X-API-Key': process.env.MAILVALID_API_KEY,
-      'Content-Type': 'application/json'
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email })
   });
-  
+
   const { result } = await response.json();
-  
+
   const errorEl = document.getElementById('email-error');
   if (!result.is_valid) {
     errorEl.textContent = 'Please check your email address.';
@@ -56,7 +56,26 @@ document.getElementById('email').addEventListener('blur', async (event) => {
 });
 ```
 
-In the example above, the `fetch` call is shown client-side for clarity. In production, route this through your server-side checkout endpoint instead.
+**Server-side handler (Node.js / Express):**
+
+```javascript
+// POST /api/verify-email
+app.post('/api/verify-email', async (req, res) => {
+  const { email } = req.body;
+
+  const mvResponse = await fetch('https://mailvalid.io/api/v1/verify/single', {
+    method: 'POST',
+    headers: {
+      'X-API-Key': process.env.MAILVALID_API_KEY,  // kept server-side only
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ email })
+  });
+
+  const data = await mvResponse.json();
+  res.json({ result: data.result });
+});
+```
 
 <Warning>
   Call the API from your server-side checkout endpoint, not directly from the browser. Putting your API key in front-end JavaScript exposes it to anyone who views your page source, allowing others to consume your verification credits. Keep the key on the server.

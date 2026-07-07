@@ -1,0 +1,77 @@
+---
+title: "Authenticate Requests to the MailValid API"
+sidebarTitle: "Authentication"
+description: "MailValid uses API keys passed in the X-API-Key header. Learn how to create, use, and manage your API keys from the dashboard."
+---
+
+Every request to the MailValid API must include a valid API key in the `X-API-Key` request header. You create and manage your keys from the MailValid dashboard — there are no OAuth flows or token exchanges to worry about.
+
+<Warning>
+  API keys provide full access to your MailValid account, including your credit balance. Never commit a key to source control or expose it in client-side code. Store keys in environment variables or a secrets manager, and rotate them if you suspect a leak.
+</Warning>
+
+## Creating an API key
+
+<Steps>
+  <Step title="Sign up or log in">
+    Go to [mailvalid.io](https://mailvalid.io) and create a free account or sign in to your existing one. New accounts include 100 free credits — no credit card required.
+  </Step>
+  <Step title="Open the API Keys page">
+    From your account dashboard, navigate to **Dashboard → API Keys**.
+  </Step>
+  <Step title="Create a new key">
+    Click **Create New Key** and give it a descriptive name — for example, `production`, `staging`, or the name of the application that will use it.
+  </Step>
+  <Step title="Copy your key immediately">
+    After the key is generated, copy it right away. MailValid will not display the full key value again after you navigate away from the page. If you lose a key, revoke it and create a new one.
+  </Step>
+</Steps>
+
+## Using your API key
+
+Include your API key in the `X-API-Key` header on every request:
+
+```
+X-API-Key: mv_live_your_key_here
+```
+
+Here's a complete example using cURL:
+
+```bash
+curl -X POST https://mailvalid.io/api/v1/verify/single \
+  -H "X-API-Key: mv_live_your_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "john@company.com"}'
+```
+
+<Note>
+  All code examples throughout this documentation use the same `X-API-Key` header pattern. Replace `mv_live_your_key_here` with your actual key in every example you run.
+</Note>
+
+## API key format
+
+MailValid API keys always start with the `mv_live_` prefix, followed by a unique string:
+
+```
+mv_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+If your key does not start with `mv_live_`, it is not a valid MailValid API key.
+
+## Managing your keys
+
+You can create as many API keys as you need from the dashboard, and revoke any key at any time from the same page. Revoking a key is immediate — requests using that key will start returning `401 Unauthorized` right away.
+
+<Tip>
+  Use a separate API key for each environment (development, staging, production) and for each application or service that calls the API. This makes it easy to rotate or revoke a single key without affecting anything else.
+</Tip>
+
+## Authentication errors
+
+If a request fails due to an authentication or account issue, MailValid returns one of the following HTTP status codes:
+
+| HTTP Code | Meaning | Fix |
+|---|---|---|
+| 401 | Missing or invalid API key | Check that the `X-API-Key` header is present and that the key value is correct and has not been revoked |
+| 402 | Insufficient credits | Purchase more credits from the dashboard |
+| 429 | Rate limit exceeded | Wait for the period specified in the `Retry-After` response header before retrying |

@@ -1,0 +1,124 @@
+---
+title: "GET /api/v1/verify/bulk/{job_id} — Check Bulk Job Status"
+sidebarTitle: "Get Job Status"
+description: "GET /api/v1/verify/bulk/{job_id} returns the current status and results of a bulk verification job. Poll until status is completed or failed."
+---
+
+Poll this endpoint after submitting a bulk job to track progress and retrieve results. The response includes the job's current `status`, a running count of processed emails, and — once the job reaches `completed` — the full `results` array with one `VerificationResult` object per email.
+
+## Endpoint
+
+| | |
+|---|---|
+| **Method** | `GET` |
+| **URL** | `https://mailvalid.io/api/v1/verify/bulk/{job_id}` |
+
+## Authentication
+
+Include your API key in the `X-API-Key` request header.
+
+---
+
+## Path parameter
+
+<ParamField path="job_id" type="string" required>
+  The UUID of the bulk job, returned by [POST /api/v1/verify/bulk](api-reference/verify-bulk) when the job was created.
+</ParamField>
+
+---
+
+## Example request
+
+```bash cURL
+curl https://mailvalid.io/api/v1/verify/bulk/550e8400-e29b-41d4-a716-446655440000 \
+  -H "X-API-Key: mv_live_your_key_here"
+```
+
+---
+
+## Response
+
+### In-progress job
+
+While the job is `pending` or `processing`, the response omits the `results` array and shows partial progress counters.
+
+### Completed job
+
+When `status` is `completed`, the full `results` array is included.
+
+```json Example response (completed)
+{
+  "job_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "completed",
+  "total_emails": 3,
+  "processed_emails": 3,
+  "valid_count": 2,
+  "invalid_count": 1,
+  "credits_used": 3,
+  "results": [
+    {
+      "email": "john@company.com",
+      "status": "valid",
+      "is_valid": true
+    }
+  ]
+}
+```
+
+<ResponseField name="job_id" type="string">
+  The UUID of this bulk job.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current job state. See the status values table below.
+</ResponseField>
+
+<ResponseField name="total_emails" type="integer">
+  Total number of email addresses submitted in this job.
+</ResponseField>
+
+<ResponseField name="processed_emails" type="integer">
+  Number of emails verified so far. Equals `total_emails` when the job is `completed`.
+</ResponseField>
+
+<ResponseField name="valid_count" type="integer">
+  Number of emails that returned a `valid` status.
+</ResponseField>
+
+<ResponseField name="invalid_count" type="integer">
+  Number of emails that returned an `invalid` status.
+</ResponseField>
+
+<ResponseField name="credits_used" type="integer">
+  Final credit charge for this job, available once the job reaches `completed`. Always less than or equal to the original `credits_reserved`.
+</ResponseField>
+
+<ResponseField name="results" type="array">
+  Array of `VerificationResult` objects — one per email — present only when `status` is `completed`. Each object contains the same fields as a single-email verification response. See [POST /api/v1/verify/single](api-reference/verify-single) for the full field reference.
+</ResponseField>
+
+---
+
+## Job status values
+
+| Status | Meaning |
+|---|---|
+| `pending` | Job is queued and has not started yet |
+| `processing` | MailValid is actively verifying emails |
+| `completed` | All emails processed; results are available |
+| `failed` | An error occurred; check `error_message` in the response |
+| `cancelled` | Job was cancelled by you via [DELETE /api/v1/verify/bulk/{job_id}](api-reference/bulk-job-cancel) |
+
+---
+
+## Error responses
+
+| HTTP Code | Meaning |
+|---|---|
+| `401` | Invalid or missing API key |
+| `404` | No job found with the supplied `job_id` |
+| `429` | Rate limit exceeded — check the `Retry-After` header |
+
+<Tip>
+  MailValid emails you when the job finishes, so you don't need to poll constantly. Set a `webhook_url` when submitting the job for an instant POST notification the moment processing completes — no polling required.
+</Tip>

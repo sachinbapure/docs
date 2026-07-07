@@ -1,20 +1,11 @@
 {
-  "$schema": "https://mintlify.com/docs.json",
-  "name": "MailValid",
+  "projectType": "api-service",
+  "projectName": "MailValid",
+  "projectDescription": "A developer-first email verification API that validates syntax, domain, MX records, and SMTP mailbox existence in real-time at $0.001 per verification with credits that never expire.",
   "theme": "luma",
-  "colors": {
-    "primary": "#2563EB",
-    "light": "#3B82F6",
-    "dark": "#1D4ED8"
-  },
-  "favicon": "/favicon.svg",
-  "navbar": {
-    "primary": {
-      "type": "button",
-      "label": "Get Started Free",
-      "href": "https://mailvalid.io/register"
-    }
-  },
+  "primaryColor": "#2563EB",
+  "lightColor": "#3B82F6",
+  "darkColor": "#1D4ED8",
   "navigation": {
     "tabs": [
       {
@@ -92,29 +83,32 @@
       }
     ]
   },
-  "footer": {
-    "links": [
-      {
-        "header": "Product",
-        "items": [
-          { "label": "Pricing", "href": "https://mailvalid.io/pricing" },
-          { "label": "Status", "href": "https://mailvalid.io/status" }
-        ]
-      },
-      {
-        "header": "Support",
-        "items": [
-          { "label": "Contact", "href": "https://mailvalid.io/contact" },
-          { "label": "FAQ", "href": "/faq" }
-        ]
-      },
-      {
-        "header": "Legal",
-        "items": [
-          { "label": "Privacy Policy", "href": "https://mailvalid.io/privacy" },
-          { "label": "Terms of Service", "href": "https://mailvalid.io/terms" }
-        ]
-      }
-    ]
-  }
+  "keyFeatures": [
+    "Real-time single email verification with syntax, MX, and SMTP checks",
+    "Async bulk verification of up to 10,000 emails per request",
+    "Disposable email detection",
+    "Role-based email detection (info@, support@, etc.)",
+    "Catch-all domain flagging",
+    "Confidence score (0–100) with machine-readable sub-status reasons",
+    "Webhook notifications on bulk job completion",
+    "Bounce feedback webhook to improve accuracy over time",
+    "MCP (Model Context Protocol) server for AI agent integration",
+    "Credits that never expire with transparent pay-as-you-go pricing",
+    "Sub-500ms average response time with 99.9% uptime SLA",
+    "Code examples in Python, Node.js, PHP, Ruby, Go, and Java"
+  ],
+  "publicApiSurface": [
+    "POST /api/v1/verify/single",
+    "POST /api/v1/verify/bulk",
+    "GET /api/v1/verify/bulk",
+    "GET /api/v1/verify/bulk/{job_id}",
+    "DELETE /api/v1/verify/bulk/{job_id}",
+    "GET /api/v1/verify/bulk/{job_id}/download",
+    "POST /api/v1/webhooks/bounce",
+    "GET /api/v1/credits",
+    "GET /api/auth/api-keys",
+    "POST /api/auth/api-keys",
+    "DELETE /api/auth/api-keys/{key_id}",
+    "https://mailvalid.io/mcp/ (MCP server endpoint)"
+  ]
 }

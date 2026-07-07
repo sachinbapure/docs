@@ -1,0 +1,81 @@
+---
+title: "DELETE /api/v1/verify/bulk/{job_id} — Cancel a Bulk Job"
+sidebarTitle: "Cancel Job"
+description: "DELETE /api/v1/verify/bulk/{job_id} cancels a pending or processing bulk verification job and releases any reserved credits back to your account."
+---
+
+Cancel a bulk job that is still `pending` or `processing`. MailValid immediately stops verification and releases all unreserved credits back to your account balance — so you're only charged for emails that were already processed before the cancellation was received.
+
+## Endpoint
+
+| | |
+|---|---|
+| **Method** | `DELETE` |
+| **URL** | `https://mailvalid.io/api/v1/verify/bulk/{job_id}` |
+
+## Authentication
+
+Include your API key in the `X-API-Key` request header.
+
+---
+
+## Path parameter
+
+<ParamField path="job_id" type="string" required>
+  The UUID of the bulk job you want to cancel.
+</ParamField>
+
+---
+
+## Example request
+
+```bash cURL
+curl -X DELETE https://mailvalid.io/api/v1/verify/bulk/550e8400-e29b-41d4-a716-446655440000 \
+  -H "X-API-Key: mv_live_your_key_here"
+```
+
+---
+
+## Response
+
+A successful cancellation returns HTTP `200`.
+
+```json Example response
+{
+  "success": true,
+  "message": "Job cancelled successfully"
+}
+```
+
+<ResponseField name="success" type="boolean">
+  `true` when the cancellation was accepted and the job has been marked `cancelled`.
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  A human-readable confirmation message.
+</ResponseField>
+
+---
+
+## Billing behaviour on cancellation
+
+When you cancel a job:
+
+- Credits reserved for **unprocessed** emails are released back to your account immediately.
+- Credits for emails that were **already verified** before cancellation are charged as normal and are not refunded.
+- The final `credits_used` tally reflects only the emails that completed verification.
+
+<Note>
+  You cannot cancel a job that has already reached `completed` or `failed` status — those are terminal states. Attempting to cancel a completed job returns a `409 Conflict` response. Credits for already-processed emails in a `completed` job are not refunded.
+</Note>
+
+---
+
+## Error responses
+
+| HTTP Code | Meaning |
+|---|---|
+| `401` | Invalid or missing API key |
+| `404` | No job found with the supplied `job_id` |
+| `409` | Job is already in a terminal state (`completed`, `failed`, or already `cancelled`) |
+| `429` | Rate limit exceeded — check the `Retry-After` header |

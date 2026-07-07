@@ -1,0 +1,142 @@
+---
+title: "MailValid FAQ: Verification, Credits, and API Questions"
+sidebarTitle: "FAQ"
+description: "Answers to the most common questions about how MailValid works, what counts as a credit, rate limits, accuracy, catch-all domains, and disposable email detection."
+---
+
+This page answers the most common questions about MailValid — how email verification works under the hood, how credits are counted and priced, and what to expect from the API.
+
+## General
+
+<AccordionGroup>
+  <Accordion title="How does email verification work?">
+    MailValid uses a multi-step verification process to confirm whether an email address is deliverable:
+
+    1. **Syntax check** — validates the address format against RFC 5322 standards.
+    2. **Domain and MX check** — confirms the domain exists and has valid mail exchange (MX) records configured.
+    3. **SMTP handshake** — connects to the mail server and checks whether the specific mailbox exists, all without sending an actual email.
+
+    Each step narrows down the result, and the final `status` field in the API response reflects the outcome of the deepest check that could be completed.
+  </Accordion>
+
+  <Accordion title="What is a disposable email?">
+    Disposable emails — also called temporary or throwaway addresses — are created through services like Mailinator, 10MinuteMail, or Guerrilla Mail. Users often create them to bypass signup requirements; they typically become invalid within hours or days.
+
+    MailValid detects these addresses and flags them with `is_disposable: true` in the response, helping you keep your list clean and avoid wasted sends.
+  </Accordion>
+
+  <Accordion title="What is a catch-all domain?">
+    A catch-all domain is configured to accept any email sent to `@domain.com` — even if that specific mailbox doesn't exist on the server. Because the mail server accepts everything, MailValid cannot confirm whether the individual mailbox is real.
+
+    When a domain is catch-all, MailValid flags it with `is_catch_all: true` and returns a `catch_all` status. Whether you choose to send to catch-all addresses is your call — it depends on your risk tolerance. Some catch-all addresses are perfectly valid; others will bounce.
+  </Accordion>
+
+  <Accordion title="What is a role-based email?">
+    Role-based addresses represent a function or department rather than an individual person — think `info@`, `support@`, `sales@`, or `admin@`. These inboxes are often shared by multiple people or handed off between team members over time.
+
+    MailValid flags these with `is_role_based: true`. For transactional email they may be fine, but for personal outreach they typically have higher bounce rates and lower engagement, so it's worth filtering them out of marketing campaigns.
+  </Accordion>
+
+  <Accordion title="What accuracy can I expect?">
+    MailValid delivers **95%+ accuracy** for deliverable and undeliverable determinations. A few edge cases exist where certainty is not possible:
+
+    - **Catch-all domains** — the mail server accepts all email regardless of whether the mailbox exists, so the individual address cannot be confirmed.
+    - **Providers that block SMTP** — some corporate providers, including Microsoft and Apple, actively block SMTP verification attempts.
+
+    In both cases, MailValid clearly flags the result in the response — either as `catch_all` or `unknown` — so you always know exactly what level of confidence you're working with.
+  </Accordion>
+</AccordionGroup>
+
+## Credits & Pricing
+
+<AccordionGroup>
+  <Accordion title="Do credits expire?">
+    No. Credits never expire on any plan, including monthly plans. Unused credits roll over from month to month and stay in your account until you use them. This makes MailValid practical for projects with variable or seasonal verification needs — buy when it suits you, use at your own pace.
+  </Accordion>
+
+  <Accordion title="What counts as one credit?">
+    **1 credit** is charged for a fresh verification that returns one of these statuses: `valid`, `invalid`, `catch_all`, or `do_not_mail`. Invalid addresses are billable because a completed check — even one that confirms an address will bounce — saves you from sending to it.
+
+    **0 credits** are charged for:
+    - `unknown` results (the verification could not be completed)
+    - Cached results from a recent repeat verification of the same address
+    - Duplicate emails within the same bulk upload
+
+    The `credits_used` field in every API response shows the exact charge for that request.
+  </Accordion>
+
+  <Accordion title="How many free credits do I get?">
+    Every new account starts with **100 free credits** — no credit card required. These credits never expire, so you can take your time testing the API and validating your integration before committing to a plan.
+  </Accordion>
+
+  <Accordion title="What plans are available?">
+    MailValid offers four monthly plans and a pay-as-you-go top-up option:
+
+    | Plan | Price | Monthly Credits | Rate Limit |
+    |---|---|---|---|
+    | Free | $0 | 100 (one-time) | 10 req/min |
+    | Starter | $15/mo | 10,000 | 50 req/min |
+    | Growth | $50/mo | 50,000 | 100 req/min |
+    | Business | $150/mo | 200,000 | 200 req/min |
+
+    If you need credits beyond your monthly allocation, you can top up with pay-as-you-go credits starting from **$5 for 1,500 credits** (300 credits per additional $1).
+  </Accordion>
+
+  <Accordion title="Can I use a top-up with a monthly plan?">
+    Yes. Pay-as-you-go top-up credits stack on top of your monthly plan credits. Top-up credits never expire and are used alongside your regular monthly allocation. Your plan's monthly credits renew each billing cycle; your top-up credits carry forward until spent.
+  </Accordion>
+</AccordionGroup>
+
+## API & Technical
+
+<AccordionGroup>
+  <Accordion title="What is the API rate limit?">
+    Rate limits scale with your plan:
+
+    | Plan | Rate Limit |
+    |---|---|
+    | Free | 10 requests/min |
+    | Starter | 50 requests/min |
+    | Growth | 100 requests/min |
+    | Business | 200 requests/min |
+
+    When you exceed your limit, the API returns a `429 Too Many Requests` response with a `Retry-After` header indicating how many seconds to wait before retrying. If you need higher limits, contact MailValid to discuss your requirements.
+  </Accordion>
+
+  <Accordion title="What is the average response time?">
+    Single email verifications complete in **under 500ms** on average. Most requests return in 200–400ms. Response time can vary depending on the mail server being queried — the SMTP handshake step is subject to the target server's own response speed.
+  </Accordion>
+
+  <Accordion title="Why does my email return 'unknown'?">
+    An `unknown` result means MailValid could not determine whether the mailbox exists. Common causes include:
+
+    - **Providers that block SMTP** — Microsoft (Outlook, Hotmail) and Apple (iCloud) actively prevent external SMTP verification.
+    - **Greylisting** — some mail servers temporarily reject unknown senders; the address may be valid but can't be confirmed right now.
+    - **Anti-spam systems** — the mail server's spam protection blocked the verification attempt.
+    - **Temporary mail server errors** — the server returned a transient error unrelated to the address itself.
+
+    `unknown` results are always free — you are never charged a credit for an inconclusive check.
+  </Accordion>
+
+  <Accordion title="Can I verify emails in bulk?">
+    Yes. Send a `POST` request to `/api/v1/verify/bulk` with an array of up to **10,000 email addresses** per job. Bulk jobs are processed asynchronously — submit the job, then either poll the job endpoint for status updates or provide a `webhook_url` to receive a notification when the job completes.
+  </Accordion>
+
+  <Accordion title="What languages does MailValid support?">
+    MailValid exposes a standard REST API that works with any HTTP client in any language. The documentation includes ready-to-use code examples for:
+
+    - cURL
+    - Python
+    - Node.js
+    - PHP
+    - Ruby
+    - Go
+    - Java
+
+    If your language isn't listed, any HTTP library that can set request headers and send JSON request bodies will work.
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+  Still have questions? Contact the MailValid support team at [mailvalid.io/contact](https://mailvalid.io/contact).
+</Note>

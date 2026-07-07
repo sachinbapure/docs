@@ -1,0 +1,71 @@
+---
+title: "How Email Verification Works: Syntax, MX, and SMTP"
+sidebarTitle: "Verification Process"
+description: "MailValid verifies emails in three layers: RFC 5322 syntax check, domain and MX record lookup, and SMTP mailbox handshake — without sending an email."
+---
+
+Every email address you submit to MailValid passes through a three-layer verification pipeline. Each layer builds on the last — catching invalid addresses as early as possible, then drilling deeper to confirm real mailbox existence. The entire process completes in under 500ms on average, and no actual email is ever sent.
+
+## Layer 1: Syntax validation
+
+MailValid first checks whether the email address is correctly formatted according to **RFC 5322**, the internet standard that defines the structure of email addresses. This catches typos, missing `@` symbols, invalid characters, and other malformed patterns before any network call is made.
+
+Syntax validation is instantaneous — it requires no DNS lookup or external connection. If an address fails here, the response returns immediately with `status: invalid` and `status_reason: failed_syntax_check`.
+
+Common failures caught at this layer:
+- Missing or duplicate `@` symbols (e.g. `userexample.com`, `user@@example.com`)
+- Invalid characters in the local part or domain
+- Empty local parts or domains (e.g. `@example.com`)
+- Domains missing a TLD (e.g. `user@localhost`)
+
+## Layer 2: Domain & MX check
+
+If the address passes syntax validation, MailValid queries DNS to confirm the domain is real and configured to receive email.
+
+This layer performs two checks:
+
+1. **Domain existence** — MailValid looks up DNS records for the domain. If no records exist, the address returns `status: invalid` with `status_reason: no_dns_entries`. This catches addresses like `user@totallyfakedomain12345.com`.
+
+2. **MX record verification** — Even if the domain exists, it must have Mail Exchange (MX) records configured to receive email. If none are found, the response returns `status: invalid` with `status_reason: no_mx_records`.
+
+Addresses that fail at this layer will always bounce — no mail server exists to accept them.
+
+## Layer 3: SMTP mailbox verification
+
+For addresses that pass the first two layers, MailValid performs an **SMTP handshake** directly with the domain's mail server. This is the deepest check: it opens a connection, identifies itself, and asks the mail server whether the specific mailbox exists — without ever sending a message.
+
+A successful handshake receives an **SMTP 250 response**, confirming the mailbox is real and deliverable. The response includes `status: valid`, `status_reason: mailbox_confirmed`, and `smtp_response_code: 250`.
+
+If the server explicitly rejects the mailbox (typically with a 550 response), the address returns `status: invalid` and `status_reason: mailbox_not_found`.
+
+## Special cases
+
+Not all email addresses produce a clean valid or invalid result. Several real-world scenarios require special handling.
+
+### Catch-all domains
+
+Some domains are configured to accept email sent to **any address** — even ones that don't correspond to a real mailbox. When MailValid detects this behaviour during the SMTP handshake, it cannot confirm whether the specific mailbox exists.
+
+These addresses return `is_catch_all: true` and `status: catch_all`. You can still choose to send to them, but do so with the understanding that delivery is not guaranteed.
+
+### Provider blocking
+
+Major email providers including **Microsoft** (Outlook, Hotmail) and **Apple** (iCloud) actively block SMTP verification attempts. When MailValid cannot complete the handshake due to provider-level blocking, the result is `status: unknown` with `status_reason: failed_smtp_connection`.
+
+<Tip>
+  Unknown results are always free — MailValid charges **0 credits** when it cannot determine the validity of an address. You only pay for useful results.
+</Tip>
+
+### Disposable emails
+
+MailValid maintains a regularly updated list of known temporary and throwaway email providers (such as Mailinator, 10MinuteMail, and Guerrilla Mail). Addresses from these services are flagged with `is_disposable: true` and return `status: do_not_mail`. These addresses are typically abandoned within hours of creation.
+
+### Role-based addresses
+
+Addresses like `info@`, `support@`, `admin@`, and `sales@` represent a department or function rather than a specific individual. They often have multiple recipients, rotate ownership over time, and can generate spam complaints when used for personal outreach. MailValid flags these with `is_role_based: true` and returns `status: do_not_mail`.
+
+## Verification time
+
+MailValid completes most verifications in **under 500ms**, with the majority finishing between 200–400ms. The bulk of the time is spent at Layer 3 — SMTP response times vary by mail server. Some corporate mail servers respond slowly or enforce deliberate delays, which can push individual checks closer to the upper end of that range.
+
+For bulk verification jobs, addresses are processed in parallel, so total job time does not scale linearly with the number of emails.

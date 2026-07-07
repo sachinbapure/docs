@@ -1,0 +1,114 @@
+---
+title: "POST /api/v1/verify/bulk — Submit a Bulk Verification Job"
+sidebarTitle: "Submit Bulk Job"
+description: "POST /api/v1/verify/bulk submits an async batch of up to 10,000 emails. Returns a job_id to poll for status or receive results via webhook."
+---
+
+This endpoint submits an asynchronous bulk verification job. Jobs are processed in the background — you receive a `job_id` immediately and can either poll the [Get Job Status](api-reference/bulk-job-status) endpoint or supply a `webhook_url` to receive a POST request the moment the job finishes. Results are available for download for 30 days after completion.
+
+## Endpoint
+
+| | |
+|---|---|
+| **Method** | `POST` |
+| **URL** | `https://mailvalid.io/api/v1/verify/bulk` |
+
+## Authentication
+
+Include your API key in the `X-API-Key` request header.
+
+## Credits
+
+When you submit a job, MailValid reserves `credits_reserved` credits — the maximum possible charge (one per email). After processing, any credits for emails that returned `unknown` or `cached: true` results are released back to your balance. The final charge is reported as `credits_used` in the completed job response.
+
+---
+
+## Request
+
+### Headers
+
+<ParamField header="X-API-Key" type="string" required>
+  Your MailValid API key (format: `mv_live_...`).
+</ParamField>
+
+<ParamField header="Content-Type" type="string">
+  Must be `application/json`.
+</ParamField>
+
+### Body
+
+<ParamField body="emails" type="array" required>
+  An array of email address strings to verify. Maximum 10,000 emails per request.
+</ParamField>
+
+<ParamField body="webhook_url" type="string">
+  A URL on your server that MailValid will `POST` to when the job completes. The payload includes the job summary and a `results_url`. If omitted, you can poll [GET /api/v1/verify/bulk/{job_id}](api-reference/bulk-job-status) for status instead.
+</ParamField>
+
+### Example request
+
+```bash cURL
+curl -X POST https://mailvalid.io/api/v1/verify/bulk \
+  -H "X-API-Key: mv_live_your_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "emails": [
+      "john@company.com",
+      "jane@example.org",
+      "info@business.net"
+    ],
+    "webhook_url": "https://yourapp.com/webhooks/mailvalid"
+  }'
+```
+
+---
+
+## Response
+
+A successful submission returns HTTP `201 Created` with the new job's details.
+
+```json Example response (job created)
+{
+  "job_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "pending",
+  "total_emails": 3,
+  "credits_reserved": 3,
+  "webhook_url": "https://yourapp.com/webhooks/mailvalid"
+}
+```
+
+<ResponseField name="job_id" type="string">
+  A UUID that uniquely identifies your bulk job. Use this to check status, download results, or cancel the job.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Initial job state — always `pending` immediately after submission.
+</ResponseField>
+
+<ResponseField name="total_emails" type="integer">
+  The number of email addresses included in this job.
+</ResponseField>
+
+<ResponseField name="credits_reserved" type="integer">
+  Credits held against your balance while the job runs. This is the **maximum** possible charge — equal to `total_emails`. Unused credits (for `unknown` or cached results) are released after processing finishes.
+</ResponseField>
+
+<ResponseField name="webhook_url" type="string">
+  The webhook URL you provided, echoed back for confirmation. `null` if none was supplied.
+</ResponseField>
+
+<Note>
+  `credits_reserved` is the ceiling, not the final bill. Your actual charge — `credits_used` — is reported when the job reaches `completed` status and is always less than or equal to `credits_reserved`.
+</Note>
+
+---
+
+## Error responses
+
+| HTTP Code | Meaning |
+|---|---|
+| `400` | Request exceeded the 10,000-email limit or malformed JSON |
+| `401` | Invalid or missing API key |
+| `402` | Insufficient credits to reserve for the job |
+| `422` | Validation error in the request body |
+| `429` | Rate limit exceeded — check the `Retry-After` header |

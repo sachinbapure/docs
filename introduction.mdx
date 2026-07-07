@@ -1,0 +1,70 @@
+---
+title: "MailValid: Email Verification API at $0.001 per Check"
+sidebarTitle: "Introduction"
+description: "MailValid verifies emails via syntax, MX record, and SMTP checks in under 500ms. 95%+ accuracy, credits that never expire, and a clean developer API."
+---
+
+MailValid is a real-time email verification API that tells you whether an email address is valid, deliverable, and safe to send to — without ever sending an actual email. Every check runs through a three-step pipeline covering syntax validation, domain and MX record lookup, and SMTP mailbox confirmation, and returns a full result in under 500ms. At $0.001 per check with credits that never expire, it's built for developers who need accurate, affordable verification at any scale.
+
+## What MailValid verifies
+
+MailValid runs every address through a three-step process, from fastest to most thorough:
+
+**Step 1 — Syntax validation**
+MailValid checks that the address conforms to RFC 5322 formatting rules. Typos, missing `@` symbols, and malformed local parts are caught immediately, at zero cost if the address fails here.
+
+**Step 2 — Domain and MX check**
+MailValid confirms that the domain exists in DNS and has at least one valid mail exchange (MX) record configured. A domain with no MX records cannot receive email, regardless of what the address looks like.
+
+**Step 3 — SMTP mailbox verification**
+MailValid opens an SMTP connection to the mail server and probes whether the specific mailbox exists — replicating exactly what a sending mail server would do, but without delivering a message. A 250 response confirms the mailbox; a 550 response marks it invalid.
+
+<Note>
+  For providers that block SMTP probing (such as Microsoft and Apple), MailValid
+  falls back to historical delivery data from the bounce webhook feed and marks
+  unresolvable addresses as `unknown` at 0 credits charged.
+</Note>
+
+## What you get in every response
+
+Every verification response includes the following fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `status` | string | Overall verdict: `valid`, `invalid`, `catch_all`, `unknown`, or `do_not_mail` |
+| `is_valid` | boolean | Whether the address is safe to send to |
+| `confidence_score` | integer | How confident MailValid is in the result, from 0 to 100 |
+| `is_disposable` | boolean | Whether the domain is a temporary or throwaway email provider |
+| `is_role_based` | boolean | Whether the address is role-based (e.g. `info@`, `support@`, `admin@`) |
+| `is_catch_all` | boolean | Whether the domain accepts mail sent to any address |
+| `is_free_provider` | boolean | Whether the domain is a free consumer provider such as Gmail or Yahoo |
+| `status_reason` | string | Machine-readable sub-status explaining the result (e.g. `mailbox_confirmed`, `no_mx_records`) |
+| `provider` | string | Detected email provider: `google`, `microsoft`, `yahoo`, `apple`, `corporate`, etc. |
+
+## Supported languages
+
+MailValid's REST API works with any HTTP client, and the docs include ready-to-run code examples for:
+
+- **Python** — using `requests`
+- **Node.js** — using the native `fetch` API
+- **PHP** — using `curl`
+- **Ruby**, **Go**, and **Java** — standard HTTP libraries
+
+See the [Quickstart](/quickstart) for copy-paste examples in each language.
+
+---
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Verify your first email in under 5 minutes with step-by-step setup instructions and code examples.
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication">
+    Learn how to create and manage API keys, and how to pass them in your requests.
+  </Card>
+  <Card title="Verification Process" icon="shield-check" href="/concepts/verification-process">
+    A deeper look at how syntax, DNS, MX, and SMTP checks work together.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/verify-single">
+    Full reference for the single email verification endpoint, including all request and response fields.
+  </Card>
+</CardGroup>

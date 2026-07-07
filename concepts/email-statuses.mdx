@@ -1,0 +1,74 @@
+---
+title: "Email Verification Status Codes and Sub-Status Reasons"
+sidebarTitle: "Email Statuses"
+description: "Reference guide for all MailValid status values, sub-status reasons, confidence scores, and boolean flags returned in verification responses."
+---
+
+Every MailValid response includes a `status`, an `is_valid` boolean, a `confidence_score`, and a `status_reason` that together give you a complete picture of an email address. Use these fields together — `status` tells you the outcome category, `status_reason` tells you exactly why, `confidence_score` tells you how certain the result is, and the boolean flags surface additional characteristics you can act on in your application logic.
+
+## Status values
+
+The `status` field is the top-level result of every verification. There are five possible values:
+
+| Status | `is_valid` | Description | Recommended action |
+|---|---|---|---|
+| `valid` | `true` | SMTP confirmed the mailbox exists | Safe to send |
+| `invalid` | `false` | Address will bounce | Do not send |
+| `catch_all` | `false` | Cannot confirm individual mailbox — domain accepts all addresses | Send with caution |
+| `unknown` | `false` | Could not determine validity | Retry later |
+| `do_not_mail` | `false` | Disposable, role-based, or complaint history | Do not send marketing |
+
+## Sub-status reasons
+
+The `status_reason` field gives you the precise machine-readable cause behind the `status`. Use it when you need to take different actions for different failure types — for example, suppressing `no_dns_entries` permanently but retrying `greylisted` addresses later.
+
+| `status_reason` | Status | Meaning |
+|---|---|---|
+| `mailbox_confirmed` | `valid` | SMTP confirmed mailbox exists (250) |
+| `historical_delivery_confirmed` | `valid` | Previously delivered successfully |
+| `mailbox_not_found` | `invalid` | SMTP rejected recipient (550) |
+| `failed_syntax_check` | `invalid` | Email format is invalid |
+| `no_dns_entries` | `invalid` | Domain does not exist |
+| `no_mx_records` | `invalid` | No MX records configured |
+| `historical_hard_bounce` | `invalid` | Previously hard-bounced |
+| `accept_all` | `catch_all` | Domain accepts all addresses |
+| `failed_smtp_connection` | `unknown` | Provider blocks SMTP (Microsoft, Apple) |
+| `antispam_system` | `unknown` | Anti-spam blocked verification |
+| `greylisted` | `unknown` | Server uses greylisting |
+| `mail_server_temporary_error` | `unknown` | Mail server returned temporary error |
+| `disposable` | `do_not_mail` | Disposable/temporary email domain |
+| `role_based` | `do_not_mail` | Role-based address |
+| `historical_complaint` | `do_not_mail` | Recipient previously filed spam complaint |
+
+## Confidence score
+
+Every result includes a `confidence_score` from 0 to 100. This reflects how certain MailValid is in the result — not just whether the address is deliverable, but how much trust to place in the outcome.
+
+| Range | Meaning |
+|---|---|
+| 90–100 | Very high — SMTP confirmed, historical data |
+| 70–89 | High — historical delivery, trusted provider |
+| 40–69 | Medium — catch-all domain, DNS-only verification |
+| 0–39 | Low — provider blocked, timeout |
+
+A `valid` result with a confidence score of 95 means MailValid received a live SMTP 250 confirmation from the mail server. A score of 30 on an `unknown` result means the provider blocked the check and the deliverability is genuinely uncertain.
+
+## Boolean flags
+
+Each verification response includes a set of boolean flags that give you additional signals beyond the primary `status`. Use these to build finer-grained filtering rules in your application.
+
+- **`is_valid`** — The primary deliverability indicator. `true` means the address is safe to send to. This directly mirrors whether `status` is `valid`.
+
+- **`is_disposable`** — `true` when the domain belongs to a known temporary or throwaway email service (Mailinator, 10MinuteMail, Guerrilla Mail, etc.). These addresses are typically abandoned within hours of creation.
+
+- **`is_role_based`** — `true` for addresses representing a function or department rather than an individual: `info@`, `support@`, `admin@`, `sales@`, and similar. These carry higher complaint risk and lower personal engagement.
+
+- **`is_catch_all`** — `true` when the domain is configured to accept mail sent to any address, regardless of whether the specific mailbox exists. Individual mailbox existence cannot be confirmed on these domains.
+
+- **`is_free_provider`** — `true` for addresses from free consumer email providers such as Gmail, Yahoo, Outlook, and similar. Useful when you want to differentiate personal from corporate email addresses.
+
+- **`cached`** — `true` when MailValid is returning a recent server-side result rather than performing a fresh verification. Cached results use **0 credits**.
+
+<Note>
+  Recommended filter for outbound sending: only send to addresses where `is_valid: true` **AND** `is_disposable: false`. This combination excludes bounces, unknowns, catch-alls, and disposable addresses in a single condition.
+</Note>

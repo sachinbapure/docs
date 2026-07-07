@@ -1,0 +1,73 @@
+---
+title: "Verify Emails at SaaS Signup to Block Fake Accounts"
+sidebarTitle: "SaaS Signup"
+description: "Integrate MailValid into your signup form to block disposable emails, reduce fake accounts, and improve trial-to-paid conversion from day one."
+---
+
+Real-time email verification at the point of signup is your first and most effective line of defence against fake accounts. By checking every address before it enters your system, you eliminate disposable emails, block invalid addresses that would bounce immediately, and ensure your trial metrics reflect genuine users — not bots and throwaway registrations.
+
+## The problem
+
+Fake signups are a silent tax on your SaaS metrics. Without verification at the door, three categories of bad email addresses slip through:
+
+- **Fake accounts inflate your numbers.** Trial-to-paid conversion, activation rate, and feature adoption all look worse when your denominator is full of accounts that were never real people.
+- **Disposable emails never convert.** Services like Mailinator or 10MinuteMail generate addresses that expire within hours. Users who sign up with them have no intention of ever becoming paying customers.
+- **Role-based addresses are unresponsive.** Addresses like `info@`, `support@`, or `admin@` route to a team inbox or a ticketing system — not a person. Onboarding sequences, upgrade nudges, and re-engagement emails sent to these addresses are ignored by default.
+
+## What to check at signup
+
+Use the following logic to decide whether to allow, warn, or block a registration based on MailValid's response fields:
+
+| Signal | Field | Recommended action |
+|---|---|---|
+| Throwaway account | `is_disposable: true` | **Block** — reject the signup |
+| Will bounce immediately | `status: "invalid"` | **Block** — reject the signup |
+| Mailbox unconfirmable | `is_catch_all: true` | **Warn** (optional) — allow but note the risk |
+| Department address | `is_role_based: true` | **Flag** (optional) — allow but suppress marketing sequences |
+| Verified real address | `is_valid: true` | **Allow** — proceed with signup |
+
+## Integration pattern
+
+Call the verification endpoint from your server-side signup handler, before you create the user record. The example below shows a Node.js function you can drop into any Express route or serverless function.
+
+```javascript
+async function validateSignupEmail(email) {
+  const response = await fetch('https://mailvalid.io/api/v1/verify/single', {
+    method: 'POST',
+    headers: {
+      'X-API-Key': process.env.MAILVALID_API_KEY,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ email })
+  });
+  
+  const { result } = await response.json();
+  
+  if (result.is_disposable) {
+    return { allowed: false, message: 'Disposable email addresses are not allowed.' };
+  }
+  
+  if (!result.is_valid) {
+    return { allowed: false, message: 'Please enter a valid email address.' };
+  }
+  
+  return { allowed: true };
+}
+```
+
+Call `validateSignupEmail` before inserting the new user into your database. If `allowed` is `false`, return a 422 response with the `message` and ask the user to try again.
+
+## Best practices
+
+Follow these guidelines to get the most out of signup verification without frustrating genuine users:
+
+- **Verify server-side, not client-side.** Rate limits apply per API key, not per user. A client-side call exposes your API key in the browser and lets bad actors probe your limits. Always call the API from your backend.
+- **Cache results for 24 hours.** If a user submits the form twice with the same address — or hits back and resubmits — you don't need to re-verify. Store the result in your session or a short-lived cache keyed by the normalised email address.
+- **Keep error messages friendly.** Don't expose API field names or internal logic in the UI. A message like "Disposable email addresses are not allowed. Please use a work or personal email." is clear without leaking implementation details.
+- **Consider allowing catch-all emails with a follow-up confirmation.** Catch-all domains (`is_catch_all: true`) accept all addresses, so MailValid can't confirm the individual mailbox. Rather than blocking these users outright, allow them through and send a confirmation email. If it bounces, mark the account unverified.
+
+<Note>
+  MailValid's single verification endpoint responds in under 500ms on average, so adding email verification adds no perceptible delay to your signup flow.
+</Note>
+
+For the full API reference, including all response fields and status codes, see [Single Verification](/guides/single-verification).

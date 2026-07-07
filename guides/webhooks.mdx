@@ -1,0 +1,131 @@
+---
+title: "MailValid Webhooks: Bulk Job Notifications and Bounce Feedback"
+sidebarTitle: "Webhooks"
+description: "Receive instant notifications when bulk jobs complete, and feed bounce data back to MailValid to improve future verification accuracy."
+---
+
+MailValid supports two types of webhooks. Outbound webhooks fire when a bulk verification job reaches a terminal state — MailValid POSTs a notification to your server so you don't have to poll. Inbound bounce feedback webhooks let you send delivery outcomes back to MailValid, improving future verification accuracy for your domain over time.
+
+## Bulk job completion webhooks
+
+When you include a `webhook_url` in a bulk job submission, MailValid sends a POST request to that URL the moment the job finishes. The payload contains the full job summary including counts and a link to retrieve the results.
+
+### Webhook payload
+
+```json
+{
+  "event": "job.completed",
+  "timestamp": "2026-01-30T10:30:00Z",
+  "data": {
+    "job_id": "550e8400-e29b-41d4-a716-446655440000",
+    "status": "completed",
+    "total_emails": 100,
+    "processed_emails": 100,
+    "valid_count": 85,
+    "invalid_count": 15,
+    "credits_used": 100,
+    "started_at": "2026-01-30T10:28:00Z",
+    "completed_at": "2026-01-30T10:30:00Z",
+    "error_message": null,
+    "results_summary": {
+      "total": 100,
+      "results_url": "https://mailvalid.io/api/v1/verify/bulk/550e8400-e29b-41d4-a716-446655440000"
+    }
+  }
+}
+```
+
+### Webhook headers
+
+Every incoming webhook request includes the following headers:
+
+| Header | Description |
+|---|---|
+| `X-Mailvalid-Signature` | HMAC-SHA256 signature of the payload |
+| `X-Mailvalid-Event` | Event type: `job.completed`, `job.failed`, `job.cancelled` |
+| `Content-Type` | `application/json` |
+
+## Verifying webhook signatures
+
+Every webhook request includes an `X-Mailvalid-Signature` header containing an HMAC-SHA256 signature of the raw request body, signed with your account's webhook secret. You can find your webhook secret in your dashboard, or retrieve it from `GET /api/auth/stats`.
+
+<Warning>
+  Always verify the signature before processing webhook data. Skipping this step means your endpoint could accept forged payloads from third parties.
+</Warning>
+
+To verify, recompute the HMAC-SHA256 over the **raw request bytes** using your webhook secret, then compare the result to the `X-Mailvalid-Signature` header value:
+
+```python Python (Flask)
+import hmac, hashlib
+from flask import request, abort
+
+WEBHOOK_SECRET = "your_webhook_secret"  # from GET /api/auth/stats
+
+def handle_webhook():
+    raw = request.get_data()  # raw bytes — do NOT use request.json
+    expected = hmac.new(WEBHOOK_SECRET.encode(), raw, hashlib.sha256).hexdigest()
+    sig = request.headers.get("X-Mailvalid-Signature", "")
+    if not hmac.compare_digest(expected, sig):
+        abort(401)  # signature mismatch — reject
+    event = request.json
+    # ... trust event and process ...
+    return "", 200
+```
+
+Two things to keep in mind when implementing signature verification:
+
+- **Use raw bytes.** Read the request body as raw bytes before any JSON parsing. Re-serializing the parsed JSON may produce different whitespace or key ordering, causing the signature check to fail.
+- **Use `hmac.compare_digest`.** This function performs a constant-time comparison to prevent timing attacks that could allow an attacker to brute-force the expected signature.
+
+## Bounce feedback webhook
+
+**Endpoint:** `POST /api/v1/webhooks/bounce`
+
+Feed real delivery outcomes back to MailValid to improve future verification accuracy. This is especially valuable for providers like Microsoft and Apple that block direct SMTP verification — historical delivery data lets MailValid confirm or invalidate those addresses without an SMTP handshake.
+
+### Event types
+
+| Event Type | Effect | Description |
+|---|---|---|
+| `delivered` | Marks valid | Email successfully delivered |
+| `hard_bounce` | Marks invalid | Permanent bounce (550) |
+| `soft_bounce` | Recorded | Temporary bounce — mailbox full (452) |
+| `complaint` | Marks do_not_mail | Recipient marked as spam |
+| `unsubscribe` | Recorded | Recipient unsubscribed |
+
+### Request body
+
+Send up to 1,000 events per request:
+
+```json
+{
+  "events": [
+    {
+      "email": "user@example.com",
+      "event_type": "hard_bounce",
+      "bounce_code": "550",
+      "bounce_message": "User unknown",
+      "timestamp": "2026-03-14T10:30:00Z"
+    },
+    {
+      "email": "valid@example.com",
+      "event_type": "delivered"
+    }
+  ]
+}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "processed": 2,
+  "errors": 0,
+  "message": "Processed 2/2 events"
+}
+```
+
+<Tip>
+  Integrating bounce feedback improves MailValid's accuracy for your domain over time. Hard bounces immediately invalidate cached verification results, so the next verification of that address returns `invalid` without spending an SMTP round-trip.
+</Tip>

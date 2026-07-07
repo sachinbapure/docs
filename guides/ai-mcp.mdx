@@ -1,0 +1,77 @@
+---
+title: "Use MailValid with AI Agents via MCP"
+sidebarTitle: "AI & MCP"
+description: "Connect Claude, Cursor, and other MCP-compatible AI agents to MailValid using the Model Context Protocol server at https://mailvalid.io/mcp/."
+---
+
+MailValid provides a hosted MCP (Model Context Protocol) server that lets AI agents like Claude and Cursor verify email addresses directly, without writing any API integration code. The MCP server sits on top of the same verification engine as the REST API, so it uses the same credits and delivers identical results. All you need is your API key.
+
+| | |
+|---|---|
+| **MCP server URL** | `https://mailvalid.io/mcp/` |
+| **Transport** | Streamable HTTP |
+| **Authentication** | `X-API-Key` header (or `Authorization: Bearer mv_live_...`) |
+| **Billing** | Identical to the REST API |
+
+## Option 1 — Connecting with the `@mailvalid/mcp` launcher
+
+The `@mailvalid/mcp` npm package is the easiest way to connect any MCP-compatible client, including stdio-only clients like Claude Desktop. Add the following block to your client's MCP config file. The launcher reads your key from the `MAILVALID_API_KEY` environment variable and proxies all requests to the hosted server, so you don't need to manage a URL or request headers manually.
+
+```json
+{
+  "mcpServers": {
+    "mailvalid": {
+      "command": "npx",
+      "args": ["-y", "@mailvalid/mcp"],
+      "env": { "MAILVALID_API_KEY": "mv_live_your_key_here" }
+    }
+  }
+}
+```
+
+## Option 2 — Connecting directly over HTTP
+
+Clients with native remote-MCP support — including Claude Code and Cursor — can point straight at the MCP endpoint without any local launcher. Use the `claude mcp add` command to register it in Claude Code:
+
+```bash
+claude mcp add --transport http mailvalid https://mailvalid.io/mcp/ \
+  --header "X-API-Key: mv_live_your_key_here"
+```
+
+Or add it to your project's `mcp.json` config file:
+
+```json
+{
+  "mcpServers": {
+    "mailvalid": {
+      "url": "https://mailvalid.io/mcp/",
+      "headers": { "X-API-Key": "mv_live_your_key_here" }
+    }
+  }
+}
+```
+
+<Note>
+  Field names vary slightly between MCP clients — some use `servers` instead of `mcpServers`. Check your client's MCP documentation if the config isn't picked up. Also include the trailing slash (`/mcp/`) to avoid an HTTP redirect on every request.
+</Note>
+
+## Available tools
+
+The MCP server exposes the following tools to connected agents:
+
+| Tool | Auth required | Cost | Description |
+|---|---|---|---|
+| `verify_email` | API key | 1 credit\* | Verify one address — full verification including syntax, DNS/MX, SMTP, disposable, role, catch-all checks, and confidence score |
+| `submit_bulk_verification` | API key | Reserves N | Queue a list for async verification |
+| `get_bulk_job` | API key | Free | Status, progress, and results of a bulk job |
+| `list_bulk_jobs` | API key | Free | List recent bulk jobs (paginated) |
+| `cancel_bulk_job` | API key | Free | Cancel a job and release reserved credits |
+| `get_credit_balance` | API key | Free | Your current credit balance |
+| `verify_email_demo` | None | Free | Demo validation — syntax checks only, no SMTP |
+| `get_api_discovery` | None | Free | MailValid machine-readable discovery URLs |
+
+\* `verify_email` is free for `unknown` results and recent cached repeats.
+
+<Note>
+  The MCP server uses the same API key as the REST API. Get your key from the [dashboard](https://mailvalid.io/dashboard/api-keys).
+</Note>

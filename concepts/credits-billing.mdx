@@ -1,0 +1,67 @@
+---
+title: "MailValid Credits, Plans, and Billing Explained"
+sidebarTitle: "Credits & Billing"
+description: "MailValid uses a credit-based system where 1 credit = 1 fresh verified email. Credits never expire. Compare Free, Starter, Growth, and Business plans."
+---
+
+MailValid uses a credit-based pricing model: every fresh, completed verification costs 1 credit. Credits are deducted at the time of verification and — crucially — **they never expire**. Whether you're on a monthly plan or topping up pay-as-you-go, any credits you acquire stay in your account until you use them, with no time pressure.
+
+## What uses a credit
+
+Not every API call costs a credit. MailValid only charges you when it returns a useful, actionable result.
+
+| Result | Credits used |
+|---|---|
+| Fresh `valid`, `invalid`, `catch_all`, or `do_not_mail` result | **1 credit** |
+| `unknown` result (provider blocked, timeout) | **0 credits** |
+| `cached: true` — recently verified same address | **0 credits** |
+| Duplicate email in the same bulk upload | **0 credits** |
+
+<Note>
+  MailValid only bills you for useful results. If the API can't determine whether an address is deliverable — because a provider blocked the SMTP check, for example — you are not charged. The same applies to repeated checks on an address you've already verified recently.
+</Note>
+
+## Plans
+
+Choose a monthly plan that matches your verification volume. All plans include access to both single and bulk verification endpoints.
+
+| Plan | Monthly credits | Price | Rate limit | Max bulk size |
+|---|---|---|---|---|
+| Free | 100 (one-time) | $0 | 10 req/min | 100 emails |
+| Starter | 10,000/month | $15/month | 50 req/min | 2,000 emails |
+| Growth | 50,000/month | $50/month | 100 req/min | 5,000 emails |
+| Business | 200,000/month | $150/month | 200 req/min | 10,000 emails |
+
+The Free plan includes 100 credits as a one-time allowance — no credit card required, and no monthly renewal. Paid plans renew monthly and include webhook notifications and bulk CSV/JSON export. The Growth plan is the most popular choice for teams sending at scale.
+
+## Pay-as-you-go top-up
+
+If your monthly plan credits run low — or you need a one-off burst of capacity — you can top up with pay-as-you-go credits. Top-ups start from **1,500 credits for $5** (300 credits per extra dollar). Top-up credits are billed once and **never expire**, so there's no risk of buying credits you won't use in time. You can combine a top-up with any active monthly plan.
+
+## Credits never expire
+
+Unused credits from any source — monthly plans or pay-as-you-go top-ups — **roll over indefinitely**. There is no end-of-month reset on unused credits, and there are no expiry dates. Buy credits when you have a campaign coming up, use them at your own pace, and know that nothing is wasted if you end up not needing them all.
+
+This applies to monthly plan credits too: if you verify 8,000 out of your 10,000 Starter credits in a given month, the remaining 2,000 carry forward into the next billing period.
+
+## Rate limits
+
+Every plan has a per-minute rate limit on API requests. When you exceed your limit, the API returns a `429 Too Many Requests` response. Use the following response headers to track your usage and handle rate limiting gracefully in your integration:
+
+| Header | Description |
+|---|---|
+| `X-RateLimit-Limit` | Maximum requests allowed in the current window |
+| `X-RateLimit-Remaining` | Remaining requests in the current window |
+| `Retry-After` | Seconds until the rate limit resets (included with 429 responses) |
+
+When you receive a `429`, read the `Retry-After` value and pause your requests for that duration before retrying. For high-volume use cases, the Business plan's 200 req/min limit accommodates most production workloads. Contact support if you need a custom limit beyond that.
+
+## Managing billing
+
+You can upgrade, downgrade, or cancel your plan at any time from the [dashboard](https://mailvalid.io/dashboard).
+
+- **Upgrading** takes effect immediately — you gain access to the higher credit allowance and rate limits straight away.
+- **Downgrading** takes effect at the end of your current billing period — you keep your existing plan benefits until then.
+- **Cancelling** also takes effect at the end of the current billing period. Your existing credits are always kept, regardless of plan changes or cancellation.
+
+There are no setup fees, no contracts, and no penalties for changing plans. Visit [mailvalid.io/pricing](https://mailvalid.io/pricing) for the full pricing page and a current comparison with other email verification services.

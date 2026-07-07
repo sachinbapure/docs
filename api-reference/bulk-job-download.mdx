@@ -1,0 +1,81 @@
+---
+title: "GET /api/v1/verify/bulk/{job_id}/download — Download Bulk Results"
+sidebarTitle: "Download Results"
+description: "Download completed bulk verification results as CSV or JSON. Supports the format query parameter with values csv or json."
+---
+
+After a bulk job reaches `status: completed`, download the full results as a CSV or JSON file. This is useful when you want to import results into a spreadsheet, data warehouse, or email marketing platform. Results remain available for download for 30 days after the job completes.
+
+## Endpoint
+
+| | |
+|---|---|
+| **Method** | `GET` |
+| **URL** | `https://mailvalid.io/api/v1/verify/bulk/{job_id}/download` |
+
+## Authentication
+
+Include your API key in the `X-API-Key` request header.
+
+---
+
+## Path parameter
+
+<ParamField path="job_id" type="string" required>
+  The UUID of the completed bulk job whose results you want to download.
+</ParamField>
+
+---
+
+## Query parameter
+
+<ParamField query="format" type="string">
+  Output format. Accepted values: `csv` or `json`. Defaults to `json` when omitted.
+</ParamField>
+
+---
+
+## Example requests
+
+<CodeGroup>
+
+```bash CSV
+curl "https://mailvalid.io/api/v1/verify/bulk/550e8400-e29b-41d4-a716-446655440000/download?format=csv" \
+  -H "X-API-Key: mv_live_your_key_here" \
+  -o results.csv
+```
+
+```bash JSON
+curl "https://mailvalid.io/api/v1/verify/bulk/550e8400-e29b-41d4-a716-446655440000/download?format=json" \
+  -H "X-API-Key: mv_live_your_key_here" \
+  -o results.json
+```
+
+</CodeGroup>
+
+---
+
+## Response formats
+
+### CSV format
+
+The CSV response contains one header row followed by one data row per email. The columns map directly to the `VerificationResult` fields — including `email`, `status`, `is_valid`, `confidence_score`, `is_disposable`, `is_role_based`, `is_catch_all`, `is_free_provider`, `provider`, `status_reason`, and all other fields returned by the verification engine. This format is ideal for importing into spreadsheets or ETL pipelines.
+
+### JSON format
+
+The JSON response has the same structure as the completed job response from [GET /api/v1/verify/bulk/{job_id}](api-reference/bulk-job-status) — a top-level object containing job metadata and a `results` array of `VerificationResult` objects. Each element in `results` is identical to what you'd receive from a single-email verification.
+
+---
+
+## Error responses
+
+| HTTP Code | Meaning |
+|---|---|
+| `401` | Invalid or missing API key |
+| `404` | No job found with the supplied `job_id` |
+| `409` | Job has not yet reached `completed` status |
+| `429` | Rate limit exceeded — check the `Retry-After` header |
+
+<Note>
+  Results are available for download for **30 days** after job completion. After that window, the download endpoint returns `404`. Download and store results on your own infrastructure if you need them beyond 30 days.
+</Note>

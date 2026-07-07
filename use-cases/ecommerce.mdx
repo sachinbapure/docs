@@ -1,0 +1,79 @@
+---
+title: "Validate Checkout Emails to Ensure Order Confirmations Arrive"
+sidebarTitle: "E-commerce"
+description: "Verify customer email addresses at checkout to guarantee order confirmations and shipping updates reach buyers. Prevent failed deliveries before they happen."
+---
+
+In e-commerce, a failed order confirmation email means a frustrated customer. When a buyer types their email address under the pressure of completing a purchase, typos are common — and a single transposed character means they never receive their receipt, shipping notification, or tracking link. Real-time verification at checkout catches these mistakes before the purchase completes, so every order confirmation reaches its intended recipient.
+
+## Common email problems at checkout
+
+Three categories of email errors appear most often at checkout:
+
+- **Typos** — `john@gmial.com` instead of `john@gmail.com`. These are the most common and entirely preventable. MailValid catches them through syntax validation combined with MX record checks: if the domain doesn't have valid mail exchange records, the address can't receive email.
+- **Invalid domains** — A customer enters a domain that simply doesn't exist or has no MX records configured. MailValid's domain and MX check flags these immediately, before you've processed the payment.
+- **Disposable emails used to hide identity** — Some customers use throwaway addresses to make a purchase without leaving a traceable email trail. MailValid's `is_disposable` flag identifies addresses from services like Mailinator or 10MinuteMail so you can prompt the customer to use a permanent address.
+
+## When to verify
+
+You have two moments in the checkout flow where you can trigger verification:
+
+- **On blur (when the customer moves to the next field)** — This is the recommended approach. Verifying as soon as the customer leaves the email field gives them instant feedback and lets them correct errors before they reach the payment step.
+- **On submit** — The minimum viable integration. Verify when the customer clicks "Place Order" and return a validation error if the address fails. Less ideal for UX but still prevents bad addresses from entering your system.
+
+<Tip>
+  Verify on blur for the smoothest checkout experience. The API responds in under 500ms, so the inline error appears before the customer has even finished reading the next field label.
+</Tip>
+
+## Integration example
+
+The example below attaches a `blur` event listener to the email input field. When the customer moves focus away, it calls the verification endpoint and displays an inline error message if the address is invalid or disposable.
+
+```javascript
+document.getElementById('email').addEventListener('blur', async (event) => {
+  const email = event.target.value;
+  if (!email) return;
+  
+  const response = await fetch('https://mailvalid.io/api/v1/verify/single', {
+    method: 'POST',
+    headers: {
+      'X-API-Key': process.env.MAILVALID_API_KEY,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ email })
+  });
+  
+  const { result } = await response.json();
+  
+  const errorEl = document.getElementById('email-error');
+  if (!result.is_valid) {
+    errorEl.textContent = 'Please check your email address.';
+  } else if (result.is_disposable) {
+    errorEl.textContent = 'Please use a permanent email to receive your order updates.';
+  } else {
+    errorEl.textContent = '';
+  }
+});
+```
+
+In the example above, the `fetch` call is shown client-side for clarity. In production, route this through your server-side checkout endpoint instead.
+
+<Warning>
+  Call the API from your server-side checkout endpoint, not directly from the browser. Putting your API key in front-end JavaScript exposes it to anyone who views your page source, allowing others to consume your verification credits. Keep the key on the server.
+</Warning>
+
+## CRM data hygiene
+
+Every verified email is an asset. After each successful purchase, record the email address and its verification metadata — particularly `is_valid` and `is_disposable` — in your CRM alongside the order record. Over time, this builds a picture of your customer base's email health.
+
+Use that data to:
+
+- **Identify stale contacts** — Customers who placed orders years ago may have changed email providers. Flag addresses that haven't received a successful delivery recently and re-verify them before your next campaign.
+- **Segment your list** — Separate confirmed-valid addresses from catch-all domains. Apply different re-engagement strategies to each segment based on their deliverability confidence.
+- **Prioritise win-back campaigns** — Focus re-engagement spend on customers with `is_valid: true`. Avoid sending to contacts whose addresses have since gone invalid.
+
+<Note>
+  If a previously valid address starts hard-bouncing, feed that event back to MailValid using the Bounce Webhook endpoint. MailValid uses delivery feedback to improve verification accuracy for future checks of the same address.
+</Note>
+
+For the full API reference and a complete list of response fields, see [Single Verification](/guides/single-verification) and [Email Statuses](/concepts/email-statuses).

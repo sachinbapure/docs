@@ -1,0 +1,81 @@
+---
+title: "Clean Your Email List Before Every Campaign"
+sidebarTitle: "List Cleaning"
+description: "Use MailValid bulk verification to remove invalid, disposable, and risky addresses from marketing lists. Protect sender reputation and cut bounce rates below 2%."
+---
+
+A clean email list is the foundation of good deliverability. Every invalid address you send to is a signal to Gmail, Outlook, and other inbox providers that you aren't managing your list responsibly. Bulk verification lets you strip out invalid, disposable, and risky addresses before they harm your sender reputation — so your campaigns land in the inbox, not the spam folder.
+
+## Why list cleaning matters
+
+Skipping list hygiene before a campaign carries real consequences:
+
+- **A hard bounce rate above 2% triggers deliverability penalties.** Gmail and other major providers use bounce rate as a key signal when evaluating your sending reputation. Exceed the threshold and your messages start landing in spam — or getting blocked entirely.
+- **ISPs use bounce rate as a spam signal.** High bounce rates signal to internet service providers that you're sending to addresses you haven't properly verified, which is a hallmark of spam operations.
+- **Sending to invalid addresses wastes budget and hurts deliverability.** Every credit spent sending to an address that will bounce is a credit that didn't reach a real person — and it actively degrades your reputation with each one.
+
+## Recommended workflow
+
+<Steps>
+  <Step title="Export your list as CSV">
+    Pull your contact list from your ESP, CRM, or database and export it as a CSV file with one email address per row.
+  </Step>
+  <Step title="Submit a bulk verification job">
+    Upload the file via the MailValid dashboard, or submit the list programmatically using the bulk API endpoint. You can include up to 10,000 addresses per request.
+  </Step>
+  <Step title="Wait for completion">
+    Bulk jobs are processed asynchronously. MailValid will email you when the job is done, or you can provide a `webhook_url` to receive a notification automatically.
+  </Step>
+  <Step title="Download results as CSV">
+    Once the job completes, download your results file from the dashboard or via the API. Each row in the output includes the original address and its full verification result.
+  </Step>
+  <Step title="Filter your list">
+    Keep addresses where `is_valid` is `true`. Remove rows with status `invalid` or `do_not_mail`. For `catch_all` addresses, decide based on your risk tolerance — see [Interpreting results](#interpreting-results) below.
+  </Step>
+</Steps>
+
+## API workflow
+
+If you prefer to automate list cleaning as part of a pipeline, use the bulk API directly. The example below submits a job and downloads the cleaned output when it's ready.
+
+```bash
+# Submit the job
+curl -X POST https://mailvalid.io/api/v1/verify/bulk \
+  -H "X-API-Key: mv_live_your_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "emails": ["user1@example.com", "user2@example.com"],
+    "webhook_url": "https://yourapp.com/hooks/mailvalid"
+  }'
+
+# Download results as CSV when complete
+curl "https://mailvalid.io/api/v1/verify/bulk/{job_id}/download?format=csv" \
+  -H "X-API-Key: mv_live_your_key_here" \
+  -o cleaned_list.csv
+```
+
+Replace `{job_id}` with the `job_id` value returned when you submitted the job. If you provided a `webhook_url`, your endpoint will receive a `job.completed` event when processing finishes — no need to poll.
+
+## Interpreting results
+
+Use the `status` field in the results file to decide what to do with each address:
+
+| Status | What it means | Recommended action |
+|---|---|---|
+| `valid` | SMTP confirmed the mailbox exists | **Send** — safe to include in your campaign |
+| `invalid` | Address will bounce — bad syntax, no domain, or mailbox not found | **Remove** — do not send |
+| `do_not_mail` | Address may work but is risky — disposable or role-based | **Remove** — do not send marketing |
+| `catch_all` | Domain accepts all addresses; individual mailbox unconfirmable | **Send with caution** — set up bounce feedback to learn from results over time |
+| `unknown` | Verification inconclusive — provider blocked SMTP check | **Retry or skip** — unknown results use 0 credits; retry before your campaign or exclude if unsure |
+
+For `catch_all` addresses, a practical approach is to send to them on your first campaign and feed any resulting hard bounces back to MailValid via the [Bounce Webhook](/guides/bulk-verification). MailValid uses that data to improve accuracy on future verifications of the same addresses.
+
+## Dashboard upload
+
+If you don't want to write any code, you can clean your list entirely through the MailValid dashboard. Drag and drop a CSV or TXT file (one address per line) directly into the dashboard upload area, and your job will be queued automatically. You'll receive an email when results are ready to download — no code required.
+
+<Tip>
+  Clean your list at least 30 days before a large campaign. Email addresses go stale at roughly 2% per month, so a list that was clean in January may have 6% invalid addresses by April.
+</Tip>
+
+For the full bulk API reference, including webhook payloads and job management endpoints, see [Bulk Verification](/guides/bulk-verification).

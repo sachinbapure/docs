@@ -1,0 +1,74 @@
+---
+title: "GET /api/v1/credits — Check Your Credit Balance"
+sidebarTitle: "Get Credits"
+description: "GET /api/v1/credits returns your current credit balance. Use this endpoint to monitor usage and trigger top-ups programmatically."
+---
+
+Check your current credit balance at any time with this endpoint. Use it to build usage dashboards, trigger automated top-up alerts, or gate verification calls in your application when credits are running low.
+
+## Endpoint
+
+| | |
+|---|---|
+| **Method** | `GET` |
+| **URL** | `https://mailvalid.io/api/v1/credits` |
+
+## Authentication
+
+Include your API key in the `X-API-Key` request header. No request body is required.
+
+---
+
+## Example request
+
+```bash cURL
+curl https://mailvalid.io/api/v1/credits \
+  -H "X-API-Key: mv_live_your_key_here"
+```
+
+---
+
+## Response
+
+```json Example response
+{
+  "success": true,
+  "credits": 9850,
+  "plan": "growth",
+  "monthly_credits": 50000,
+  "credits_used_this_month": 150
+}
+```
+
+<ResponseField name="success" type="boolean">
+  `true` when the request was processed without errors.
+</ResponseField>
+
+<ResponseField name="credits" type="integer">
+  Your current available credit balance — the number of verifications you can still run before a top-up is needed.
+</ResponseField>
+
+<ResponseField name="plan" type="string">
+  Your active subscription plan name, e.g. `starter`, `growth`, or `enterprise`.
+</ResponseField>
+
+<ResponseField name="monthly_credits" type="integer">
+  The total number of credits included with your current plan per billing month.
+</ResponseField>
+
+<ResponseField name="credits_used_this_month" type="integer">
+  The number of credits consumed since the start of your current billing period.
+</ResponseField>
+
+---
+
+## Error responses
+
+| HTTP Code | Meaning |
+|---|---|
+| `401` | Invalid or missing API key |
+| `429` | Rate limit exceeded — check the `Retry-After` header |
+
+<Tip>
+  Monitor your balance programmatically and send yourself an alert when `credits` drops below a threshold — for example, 10% of `monthly_credits`. This prevents unexpected verification failures mid-campaign without requiring you to log in to the dashboard.
+</Tip>

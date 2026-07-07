@@ -1,0 +1,159 @@
+---
+title: "MailValid API Error Codes and Troubleshooting Guide"
+sidebarTitle: "Error Reference"
+description: "Complete reference for all MailValid HTTP error codes and API error messages. Includes causes and solutions for 401, 402, 422, 429, and 500 errors."
+---
+
+When something goes wrong, MailValid returns an HTTP status code and a JSON response body with a `detail` field that describes what happened. Use the status code to identify the category of error, then read `detail` for the specific cause.
+
+## Error response format
+
+Every error response follows the same structure:
+
+```json
+{
+  "detail": "Error message describing what went wrong"
+}
+```
+
+## HTTP status codes
+
+| Code | Status | Description |
+|---|---|---|
+| 200 | OK | Request successful |
+| 201 | Created | Resource created (bulk job submitted) |
+| 400 | Bad Request | Invalid request format or parameters |
+| 401 | Unauthorized | Missing or invalid API key |
+| 402 | Payment Required | Insufficient credits |
+| 404 | Not Found | Resource not found (e.g., unknown `job_id`) |
+| 422 | Unprocessable Entity | Invalid email format in request |
+| 429 | Too Many Requests | Rate limit exceeded |
+| 500 | Server Error | Internal server error |
+
+## Common errors and fixes
+
+<AccordionGroup>
+  <Accordion title="401 Unauthorized">
+    **Cause:** Your request is missing the `X-API-Key` header, or the key you provided is incorrect or has been revoked.
+
+    **Fix:**
+    - Confirm you're including the `X-API-Key` header in every request.
+    - Check that you're using the full key value, including the `mv_live_` prefix.
+    - Verify the key is active in your [dashboard](https://mailvalid.io/dashboard/api-keys).
+
+    ```bash
+    curl -X POST https://mailvalid.io/api/v1/verify/single \
+      -H "X-API-Key: mv_live_your_key_here" \
+      -H "Content-Type: application/json" \
+      -d '{"email": "test@example.com"}'
+    ```
+
+    <Warning>
+      API keys are case-sensitive. Copying a key with an extra space or missing character will result in a 401 on every request.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="402 Payment Required">
+    **Cause:** Your account has 0 credits remaining. MailValid will not process the verification until your balance is topped up.
+
+    **Fix:** Purchase additional credits or upgrade your plan from the [dashboard](https://mailvalid.io/dashboard). Once credits are added, resubmit your request.
+
+    <Note>
+      When a 402 is returned, `credits_used` in the response will show `0` — no credit was deducted because the verification did not run.
+    </Note>
+  </Accordion>
+
+  <Accordion title="422 Unprocessable Entity">
+    **Cause:** The `email` value in your request body is malformed in a way that prevents MailValid from parsing it — for example, an empty string, a non-string type, or a value that is structurally unparseable before verification even begins.
+
+    **Fix:**
+    - Ensure the `email` field is a non-empty string.
+    - If you're processing user-supplied input, consider pre-validating the format on your side before calling the API.
+    - Check that your request body is valid JSON and that field names are spelled correctly.
+  </Accordion>
+
+  <Accordion title="429 Too Many Requests">
+    **Cause:** You've exceeded the rate limit for your plan within the current one-minute window. Limits by plan are:
+
+    | Plan | Rate Limit |
+    |---|---|
+    | Free | 10 req/min |
+    | Starter | 50 req/min |
+    | Growth | 100 req/min |
+    | Business | 200 req/min |
+
+    **Fix:**
+    - Read the `Retry-After` header in the 429 response and wait that many seconds before retrying.
+    - Check the rate limit headers included in every response to track your remaining capacity:
+
+    | Header | Description |
+    |---|---|
+    | `X-RateLimit-Limit` | Maximum requests allowed in the current window |
+    | `X-RateLimit-Remaining` | Requests remaining in the current window |
+    | `Retry-After` | Seconds until the rate limit resets (present on 429 responses) |
+
+    For high-volume use cases, switch to bulk verification (`POST /api/v1/verify/bulk`) instead of rapid individual calls — bulk jobs are designed for throughput and have separate limits. You can also upgrade your plan to increase your per-minute limit, or contact MailValid for custom arrangements.
+  </Accordion>
+
+  <Accordion title="400 Bad Request">
+    **Cause:** The request body is invalid. Common triggers include:
+    - Malformed JSON that cannot be parsed.
+    - A bulk `emails` array that exceeds the 10,000-address limit for your plan.
+    - Missing required fields.
+
+    **Fix:**
+    - Validate that you're sending well-formed JSON with the correct `Content-Type: application/json` header.
+    - If submitting a bulk job, ensure your `emails` array does not exceed 10,000 entries. Split larger lists into multiple jobs.
+  </Accordion>
+
+  <Accordion title="500 Server Error">
+    **Cause:** An unexpected error occurred on MailValid's servers. This is not caused by anything in your request.
+
+    **Fix:**
+    - Retry the request using exponential backoff (see the [Retrying safely](#retrying-safely) section below).
+    - Check [mailvalid.io/status](https://mailvalid.io/status) for any ongoing incidents or degraded service.
+    - If the issue persists after retrying, contact support with your request details.
+  </Accordion>
+</AccordionGroup>
+
+## Retrying safely
+
+Not all errors are worth retrying. Retrying a `401` won't fix a bad API key, and retrying a `402` won't add credits to your account. Follow this decision guide:
+
+| Status Code | Retry? | Reason |
+|---|---|---|
+| 429 | ✅ Yes — after `Retry-After` | Transient rate limit; will resolve once the window resets |
+| 500 | ✅ Yes — with backoff | Transient server error; usually resolves quickly |
+| 400 | ❌ No | Your request is malformed; fix it before retrying |
+| 401 | ❌ No | Invalid credentials; retrying won't authenticate you |
+| 402 | ❌ No | No credits; add credits before retrying |
+| 422 | ❌ No | Invalid email input; fix the value before retrying |
+
+For `429` and `500` responses, use **exponential backoff**: wait 1 second before the first retry, 2 seconds before the second, and 4 seconds before the third. The Python example below shows this pattern in practice:
+
+```python
+import time
+import requests
+
+def verify_with_retry(email, api_key, max_retries=3):
+    url = "https://mailvalid.io/api/v1/verify/single"
+    headers = {"X-API-Key": api_key, "Content-Type": "application/json"}
+    
+    for attempt in range(max_retries):
+        response = requests.post(url, headers=headers, json={"email": email})
+        
+        if response.status_code == 200:
+            return response.json()
+        elif response.status_code == 429:
+            retry_after = int(response.headers.get("Retry-After", 2 ** attempt))
+            time.sleep(retry_after)
+        elif response.status_code >= 500:
+            time.sleep(2 ** attempt)
+        else:
+            # 4xx errors won't resolve with retries
+            response.raise_for_status()
+    
+    raise Exception(f"Failed after {max_retries} retries")
+```
+
+For more information on how credits are counted and what triggers a `402`, see the [credits and billing](/concepts/credits-billing) guide. To check whether an incident is affecting the API, visit [mailvalid.io/status](https://mailvalid.io/status).

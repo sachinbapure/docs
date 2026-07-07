@@ -1,0 +1,143 @@
+---
+title: "Bulk Email Verification: Verify Thousands at Once"
+sidebarTitle: "Bulk Verification"
+description: "Submit up to 10,000 emails per job to POST /api/v1/verify/bulk. Jobs run asynchronously — poll for status or receive a webhook when complete."
+---
+
+Bulk verification lets you submit up to 10,000 email addresses in a single job and process them asynchronously. Once you submit a job, MailValid works through the list in the background. You can poll the job status endpoint at any time, or supply a `webhook_url` to receive a POST notification the moment the job finishes. Results are available to download as CSV or JSON.
+
+## How bulk verification works
+
+<Steps>
+  <Step title="Submit a bulk job with your email list">
+    Send a POST request to `/api/v1/verify/bulk` with your array of email addresses. Optionally include a `webhook_url` to receive a notification when the job finishes.
+  </Step>
+  <Step title="Receive a job_id and credits_reserved">
+    MailValid responds immediately with a `job_id` and a `credits_reserved` count — the maximum number of credits that could be charged for the job.
+  </Step>
+  <Step title="Poll for status or wait for a webhook">
+    Call `GET /api/v1/verify/bulk/{job_id}` at intervals to check progress, or just wait for the webhook callback to fire when the job reaches a terminal state.
+  </Step>
+  <Step title="Download results when status is completed">
+    Once the job status is `completed`, download your results in CSV or JSON format from the download endpoint.
+  </Step>
+</Steps>
+
+## Submitting a job
+
+**Endpoint:** `POST https://mailvalid.io/api/v1/verify/bulk`
+
+<ParamField body="emails" type="array" required>
+  Array of email addresses to verify. Maximum 10,000 per job.
+</ParamField>
+
+<ParamField body="webhook_url" type="string">
+  A URL on your server that MailValid will POST to when the job completes, fails, or is cancelled.
+</ParamField>
+
+```bash cURL
+curl -X POST https://mailvalid.io/api/v1/verify/bulk \
+  -H "X-API-Key: mv_live_your_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "emails": [
+      "john@company.com",
+      "jane@example.org",
+      "info@business.net"
+    ],
+    "webhook_url": "https://yourapp.com/webhooks/mailvalid"
+  }'
+```
+
+MailValid responds immediately with a job object:
+
+```json
+{
+  "job_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "pending",
+  "total_emails": 3,
+  "credits_reserved": 3,
+  "webhook_url": "https://yourapp.com/webhooks/mailvalid"
+}
+```
+
+<Note>
+  `credits_reserved` is the maximum possible charge. Any emails that return `unknown` or are duplicates release their reserved credit after processing. The final charge appears as `credits_used` when the job completes.
+</Note>
+
+## Checking job status
+
+**Endpoint:** `GET https://mailvalid.io/api/v1/verify/bulk/{job_id}`
+
+Poll this endpoint at any time to check the current state of a job. When `status` is `completed`, the response includes the full results array.
+
+```json
+{
+  "job_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "completed",
+  "total_emails": 3,
+  "processed_emails": 3,
+  "valid_count": 2,
+  "invalid_count": 1,
+  "credits_used": 3,
+  "results": [
+    {
+      "email": "john@company.com",
+      "status": "valid",
+      "is_valid": true
+    }
+  ]
+}
+```
+
+### Job status values
+
+| Status | Meaning |
+|---|---|
+| `pending` | Job queued, not yet started |
+| `processing` | Currently verifying emails |
+| `completed` | All emails verified, results ready |
+| `failed` | Job encountered an error |
+| `cancelled` | Job was cancelled |
+
+<Info>
+  MailValid emails you when a bulk job finishes — you don't have to poll. Supply a `webhook_url` at submission time to also receive a programmatic callback.
+</Info>
+
+## Downloading results
+
+**Endpoint:** `GET /api/v1/verify/bulk/{job_id}/download`
+
+Download the verified results for a completed job. Use the `format` query parameter to choose between `csv` and `json`.
+
+```bash cURL
+# Download as CSV
+curl "https://mailvalid.io/api/v1/verify/bulk/{job_id}/download?format=csv" \
+  -H "X-API-Key: mv_live_your_key_here" \
+  -o results.csv
+
+# Download as JSON
+curl "https://mailvalid.io/api/v1/verify/bulk/{job_id}/download?format=json" \
+  -H "X-API-Key: mv_live_your_key_here" \
+  -o results.json
+```
+
+## Managing jobs
+
+**List all jobs:** `GET /api/v1/verify/bulk`
+
+Retrieve a paginated list of all your bulk verification jobs. Filter by status using the `status` query parameter (e.g., `?status=completed`).
+
+```bash cURL
+curl "https://mailvalid.io/api/v1/verify/bulk?page=1&status=completed" \
+  -H "X-API-Key: mv_live_your_key_here"
+```
+
+**Cancel a job:** `DELETE /api/v1/verify/bulk/{job_id}`
+
+Cancel a pending or processing job. Any completed billable rows up to that point consume credits; all remaining reserved credits are released back to your balance.
+
+```bash cURL
+curl -X DELETE https://mailvalid.io/api/v1/verify/bulk/{job_id} \
+  -H "X-API-Key: mv_live_your_key_here"
+```

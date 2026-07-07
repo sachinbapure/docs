@@ -1,0 +1,115 @@
+---
+title: "API Key Management: Create and Revoke MailValid Keys"
+sidebarTitle: "API Keys"
+description: "Create, list, and revoke MailValid API keys using the dashboard or the REST API. Each key uses the mv_live_ prefix and authenticates all API requests."
+---
+
+MailValid API keys authenticate every request you make to the API. You can manage keys from the dashboard — useful for quick setup — or programmatically via the REST endpoints below, which is ideal for automated provisioning and rotation workflows. Every key follows the `mv_live_...` format and carries full access to your account's verification quota.
+
+## Key format
+
+All MailValid API keys begin with the `mv_live_` prefix followed by a random string, for example:
+
+```
+mv_live_a1b2c3d4e5f6g7h8i9j0...
+```
+
+Pass this value in the `X-API-Key` header on every API request.
+
+---
+
+## Managing keys in the dashboard
+
+The fastest way to create and revoke keys is through the [Dashboard → API Keys](https://mailvalid.io/dashboard/api-keys) page:
+
+1. **Create a key** — click **Create New Key**, give it a descriptive name (e.g. `production-app`), and click **Create**.
+2. **Copy the key immediately** — the full key value is displayed **once only** at creation. Copy it to your secrets manager before closing the dialog; MailValid does not store it in recoverable form.
+3. **Revoke a key** — click **Revoke** next to any key at any time. Revocation is immediate and permanent.
+
+---
+
+## API endpoints
+
+### List your API keys
+
+Retrieve a list of all active API keys on your account. The `key` value itself is not returned after creation — only metadata.
+
+```bash cURL
+curl https://mailvalid.io/api/auth/api-keys \
+  -H "X-API-Key: mv_live_your_key_here"
+```
+
+```json Example response
+{
+  "api_keys": [
+    {
+      "id": "key_abc123",
+      "name": "my-app-prod",
+      "created_at": "2026-01-15T10:00:00Z",
+      "last_used_at": "2026-07-07T09:45:00Z"
+    }
+  ]
+}
+```
+
+<ResponseField name="api_keys" type="array">
+  Array of API key metadata objects.
+</ResponseField>
+
+<ResponseField name="api_keys[].id" type="string">
+  The unique identifier for the key. Use this `id` when revoking.
+</ResponseField>
+
+<ResponseField name="api_keys[].name" type="string">
+  The human-readable label you assigned when creating the key.
+</ResponseField>
+
+<ResponseField name="api_keys[].created_at" type="string">
+  ISO 8601 timestamp of when the key was created.
+</ResponseField>
+
+<ResponseField name="api_keys[].last_used_at" type="string">
+  ISO 8601 timestamp of the most recent API request authenticated with this key. `null` if the key has never been used.
+</ResponseField>
+
+---
+
+### Create a new API key
+
+<ParamField body="name" type="string" required>
+  A descriptive label for the new key — for example, `"my-app-prod"` or `"staging-pipeline"`. Names help you identify keys in the dashboard and in the list response.
+</ParamField>
+
+```bash cURL
+curl -X POST https://mailvalid.io/api/auth/api-keys \
+  -H "X-API-Key: mv_live_your_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "my-app-prod"}'
+```
+
+The response includes the full `key` value. **This is the only time it is returned** — store it immediately.
+
+---
+
+### Revoke a key
+
+Delete a key by its `id`. The key stops working immediately.
+
+```bash cURL
+curl -X DELETE https://mailvalid.io/api/auth/api-keys/key_abc123 \
+  -H "X-API-Key: mv_live_your_key_here"
+```
+
+A successful revocation returns HTTP `200`. Any subsequent request using the revoked key receives `401 Unauthorized`.
+
+---
+
+## Best practices
+
+<Warning>
+  The full key value is shown **only once** at creation time. Store it immediately in a secrets manager, an environment variable, or a vault — never hardcoded in source code or committed to version control. If you lose a key, revoke it and create a new one.
+</Warning>
+
+- **One key per environment** — use separate keys for development, staging, and production. If a key leaks, you can revoke only the affected environment without disrupting others.
+- **Rotate keys periodically** — create a replacement key, update your application's configuration, then revoke the old key. The list endpoint's `last_used_at` field helps you confirm traffic has migrated before revoking.
+- **Scope your key names** — descriptive names like `prod-crm-integration` or `dev-local-sachin` make audit logs and revocations much easier to reason about.

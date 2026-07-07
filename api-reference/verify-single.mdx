@@ -1,0 +1,189 @@
+---
+title: "POST /api/v1/verify/single — Verify a Single Email"
+sidebarTitle: "Verify Single Email"
+description: "POST /api/v1/verify/single verifies one email address in real-time. Accepts an email string, returns status, is_valid, confidence_score, and 15+ data points."
+---
+
+This endpoint verifies a single email address synchronously and returns a comprehensive result within 500ms on average. It performs syntax validation, domain and MX record checks, and a live SMTP mailbox probe — giving you everything you need to decide whether to send to an address before a single message leaves your server.
+
+## Endpoint
+
+| | |
+|---|---|
+| **Method** | `POST` |
+| **URL** | `https://mailvalid.io/api/v1/verify/single` |
+| **Base URL** | `https://mailvalid.io/api/v1` |
+
+## Authentication
+
+Include your API key in the `X-API-Key` request header. You can generate a key from your [Dashboard → API Keys](https://mailvalid.io/dashboard/api-keys).
+
+## Credits
+
+| Result | Credits charged |
+|---|---|
+| `valid`, `invalid`, `catch_all`, `do_not_mail` (fresh) | 1 credit |
+| `unknown` result | 0 credits |
+| Any result with `cached: true` | 0 credits |
+
+---
+
+## Request
+
+### Headers
+
+<ParamField header="X-API-Key" type="string" required>
+  Your MailValid API key (format: `mv_live_...`).
+</ParamField>
+
+<ParamField header="Content-Type" type="string">
+  Must be `application/json`.
+</ParamField>
+
+### Body
+
+<ParamField body="email" type="string" required>
+  The email address you want to verify — for example, `john@company.com`.
+</ParamField>
+
+### Example request
+
+```bash cURL
+curl -X POST https://mailvalid.io/api/v1/verify/single \
+  -H "X-API-Key: mv_live_your_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "john@company.com"}'
+```
+
+---
+
+## Response
+
+A successful request returns HTTP `200` with a JSON body containing a `result` object.
+
+```json Example response
+{
+  "success": true,
+  "credits_used": 1,
+  "result": {
+    "email": "john@company.com",
+    "status": "valid",
+    "is_valid": true,
+    "syntax_valid": true,
+    "domain": "company.com",
+    "domain_valid": true,
+    "has_mx": true,
+    "mx_records": [{"priority": 10, "host": "mx1.company.com"}],
+    "smtp_checked": true,
+    "smtp_response_code": 250,
+    "is_disposable": false,
+    "is_role_based": false,
+    "is_catch_all": false,
+    "is_free_provider": false,
+    "confidence_score": 95,
+    "status_reason": "mailbox_confirmed",
+    "provider": "corporate",
+    "verification_time_ms": 234,
+    "cached": false
+  }
+}
+```
+
+### Top-level fields
+
+<ResponseField name="success" type="boolean">
+  `true` when the request was processed without errors.
+</ResponseField>
+
+<ResponseField name="credits_used" type="integer">
+  The number of credits deducted from your balance for this request. See the credits table above.
+</ResponseField>
+
+### `result` object fields
+
+<ResponseField name="result.email" type="string">
+  The email address that was verified, echoed back exactly as submitted.
+</ResponseField>
+
+<ResponseField name="result.status" type="string">
+  The overall verification status. One of: `valid`, `invalid`, `catch_all`, `unknown`, `do_not_mail`.
+</ResponseField>
+
+<ResponseField name="result.is_valid" type="boolean">
+  `true` when the address is safe to send to. Only `valid` results return `true`; all other statuses return `false`.
+</ResponseField>
+
+<ResponseField name="result.syntax_valid" type="boolean">
+  `true` when the email address passes RFC 5321/5322 syntax checks.
+</ResponseField>
+
+<ResponseField name="result.domain" type="string">
+  The domain part of the email address (everything after the `@`).
+</ResponseField>
+
+<ResponseField name="result.domain_valid" type="boolean">
+  `true` when DNS records confirm the domain exists.
+</ResponseField>
+
+<ResponseField name="result.has_mx" type="boolean">
+  `true` when the domain has at least one valid MX record configured.
+</ResponseField>
+
+<ResponseField name="result.mx_records" type="array">
+  List of MX records for the domain. Each entry contains `priority` (integer) and `host` (string).
+</ResponseField>
+
+<ResponseField name="result.smtp_checked" type="boolean">
+  `true` when MailValid was able to complete an SMTP conversation with the mail server.
+</ResponseField>
+
+<ResponseField name="result.smtp_response_code" type="integer">
+  The SMTP response code returned by the receiving mail server (e.g. `250` for accepted, `550` for rejected).
+</ResponseField>
+
+<ResponseField name="result.is_disposable" type="boolean">
+  `true` when the domain belongs to a disposable or temporary email provider (e.g. `mailinator.com`).
+</ResponseField>
+
+<ResponseField name="result.is_role_based" type="boolean">
+  `true` when the local part of the address is a role-based alias such as `info@`, `support@`, or `admin@`.
+</ResponseField>
+
+<ResponseField name="result.is_catch_all" type="boolean">
+  `true` when the domain is configured to accept mail for any address, making individual mailbox confirmation impossible.
+</ResponseField>
+
+<ResponseField name="result.is_free_provider" type="boolean">
+  `true` when the domain is a well-known free email provider (e.g. `gmail.com`, `yahoo.com`).
+</ResponseField>
+
+<ResponseField name="result.confidence_score" type="integer">
+  A 0–100 score indicating how confident MailValid is in the result. Scores of 90–100 reflect SMTP confirmation or definitive failure; 0–39 indicate a provider-blocked or timed-out check.
+</ResponseField>
+
+<ResponseField name="result.status_reason" type="string">
+  A machine-readable sub-status giving the specific reason behind `status`. Examples: `mailbox_confirmed`, `mailbox_not_found`, `disposable`, `accept_all`, `failed_smtp_connection`.
+</ResponseField>
+
+<ResponseField name="result.provider" type="string">
+  The detected email provider. Common values: `google`, `microsoft`, `yahoo`, `apple`, `corporate`.
+</ResponseField>
+
+<ResponseField name="result.verification_time_ms" type="integer">
+  Wall-clock time in milliseconds taken to verify this address on MailValid's side.
+</ResponseField>
+
+<ResponseField name="result.cached" type="boolean">
+  `true` when MailValid returned a recent cached result instead of performing a live check. Cached results cost 0 credits.
+</ResponseField>
+
+---
+
+## Error responses
+
+| HTTP Code | Meaning |
+|---|---|
+| `401` | Invalid or missing API key |
+| `402` | Insufficient credits |
+| `422` | Invalid email format in request |
+| `429` | Rate limit exceeded — check the `Retry-After` header |

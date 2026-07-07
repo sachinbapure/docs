@@ -1,0 +1,140 @@
+---
+title: "POST /api/v1/webhooks/bounce — Send Bounce Feedback to MailValid"
+sidebarTitle: "Bounce Feedback"
+description: "POST /api/v1/webhooks/bounce feeds delivery events back to MailValid. Hard bounces mark addresses invalid; complaints mark do_not_mail — improving future accuracy."
+---
+
+Improve MailValid's future verification accuracy by feeding delivery events from your email provider back to this endpoint. Every hard bounce or complaint you report is stored and checked before any future SMTP probe — meaning known-bad addresses return results instantly at 0 credits, and your confidence scores become more accurate over time. This feedback loop is especially valuable for providers like Microsoft and Apple that block direct SMTP verification.
+
+## Endpoint
+
+| | |
+|---|---|
+| **Method** | `POST` |
+| **URL** | `https://mailvalid.io/api/v1/webhooks/bounce` |
+
+## Authentication
+
+Include your API key in the `X-API-Key` request header.
+
+---
+
+## Request
+
+### Headers
+
+<ParamField header="X-API-Key" type="string" required>
+  Your MailValid API key (format: `mv_live_...`).
+</ParamField>
+
+<ParamField header="Content-Type" type="string">
+  Must be `application/json`.
+</ParamField>
+
+### Body
+
+<ParamField body="events" type="array" required>
+  An array of delivery event objects. You can submit up to 1,000 events per request.
+</ParamField>
+
+Each object in the `events` array supports the following fields:
+
+<ParamField body="events[].email" type="string" required>
+  The email address the event relates to.
+</ParamField>
+
+<ParamField body="events[].event_type" type="string" required>
+  The type of delivery event. See the event types table below for accepted values and their effects.
+</ParamField>
+
+<ParamField body="events[].bounce_code" type="string">
+  The SMTP bounce code returned by the receiving mail server, e.g. `"550"`. Optional — include when available.
+</ParamField>
+
+<ParamField body="events[].bounce_message" type="string">
+  The human-readable bounce message from the mail server, e.g. `"User unknown"`. Optional.
+</ParamField>
+
+<ParamField body="events[].timestamp" type="string">
+  ISO 8601 timestamp of when the event occurred, e.g. `"2026-03-14T10:30:00Z"`. Optional — defaults to the time MailValid receives the request.
+</ParamField>
+
+---
+
+## Event types
+
+| Event type | Effect on MailValid | Description |
+|---|---|---|
+| `delivered` | Marks address as `valid` | Email was successfully delivered to the inbox |
+| `hard_bounce` | Marks address as `invalid` | Permanent failure — mailbox does not exist (typically SMTP 550) |
+| `soft_bounce` | Recorded (no status change) | Temporary failure — mailbox full or server down (typically SMTP 452) |
+| `complaint` | Marks address as `do_not_mail` | Recipient reported the email as spam |
+| `unsubscribe` | Recorded (no status change) | Recipient unsubscribed from emails |
+
+---
+
+## Example request
+
+```bash cURL
+curl -X POST https://mailvalid.io/api/v1/webhooks/bounce \
+  -H "X-API-Key: mv_live_your_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "events": [
+      {
+        "email": "bounced@example.com",
+        "event_type": "hard_bounce",
+        "bounce_code": "550",
+        "bounce_message": "User unknown",
+        "timestamp": "2026-03-14T10:30:00Z"
+      },
+      {
+        "email": "good@example.com",
+        "event_type": "delivered"
+      }
+    ]
+  }'
+```
+
+---
+
+## Response
+
+```json Example response
+{
+  "success": true,
+  "processed": 2,
+  "errors": 0,
+  "message": "Processed 2/2 events"
+}
+```
+
+<ResponseField name="success" type="boolean">
+  `true` when the request was accepted and events were processed.
+</ResponseField>
+
+<ResponseField name="processed" type="integer">
+  The number of events successfully recorded.
+</ResponseField>
+
+<ResponseField name="errors" type="integer">
+  The number of events that could not be recorded, e.g. due to an unrecognised `event_type` or missing required fields.
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  A human-readable summary of the processing result.
+</ResponseField>
+
+---
+
+## Error responses
+
+| HTTP Code | Meaning |
+|---|---|
+| `401` | Invalid or missing API key |
+| `422` | Validation error — check that each event contains `email` and `event_type` |
+| `429` | Rate limit exceeded — check the `Retry-After` header |
+
+<Tip>
+  Integrate this endpoint with your ESP's (Email Service Provider's) webhook system to automatically forward delivery data to MailValid. Most major ESPs — SendGrid, Postmark, Mailgun, Amazon SES — let you configure a webhook URL that fires on every bounce, complaint, and delivery event. Route those events here and your verification accuracy improves with every campaign you send.
+</Tip>
